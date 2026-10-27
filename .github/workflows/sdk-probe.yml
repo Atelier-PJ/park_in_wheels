@@ -25,9 +25,9 @@ jobs:
           else
             curl -fLsS --retry 2 "$sdk_base/Vehicle-2.3.2.jar" -o /tmp/vehicle.jar
           fi
-          jar tf /tmp/vehicle.jar | rg 'Odometer|DistanceDriven|Vehicle.class|CarMileage|DistanceUnit|Unit|Connection'
+          jar tf /tmp/vehicle.jar | grep -E 'Odometer|DistanceDriven|Vehicle.class|CarMileage|DistanceUnit|Unit|Connection'
           javap -p -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.Vehicle ai.pleos.playground.vehicle.api.Odometer
-          for c in $(jar tf /tmp/vehicle.jar | rg 'listener/.*Distance.*class$' | sed 's#/#.#g;s/.class$//'); do
+          for c in $(jar tf /tmp/vehicle.jar | grep -E 'listener/.*Distance.*class$' | sed 's#/#.#g;s/.class$//'); do
             javap -p -classpath /tmp/vehicle.jar "$c"
           done
           javap -v -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.api.Odometer > /tmp/odometer-details.txt
