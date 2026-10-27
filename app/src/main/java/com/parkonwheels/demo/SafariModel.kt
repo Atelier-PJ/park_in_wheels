@@ -40,7 +40,7 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
         try { action() } catch (ex: Exception) { error = "저장 오류: 앱을 다시 실행해 주세요." }
         finally { refresh() }
     }
-    fun setGate(next: VehicleGateway.Gate) = act { vehicle.gate(next) }
+    fun simulateGate(next: VehicleGateway.Gate) = act { vehicle.gate(next) }
     fun addDistance() = act { vehicle.addKilometres(1.0) }
     fun missingDistance() = act { vehicle.missingDistance() }
     fun start() = act { if (canPlay) engine.start() }

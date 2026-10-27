@@ -78,9 +78,9 @@ private fun SafariScreen(model: SafariModel) {
                 Text("개발자 모의 입력", style = MaterialTheme.typography.titleMedium)
                 Text("아래 버튼은 차량을 제어하지 않습니다. 실제 배포판에 포함하면 안 됩니다.")
                 Text("제한 상태: ${model.gate}")
-                OutlinedButton(onClick = { model.setGate(Gate.AVAILABLE) }) { Text("주차·이용 가능 가정") }
-                OutlinedButton(onClick = { model.setGate(Gate.RESTRICTED) }) { Text("주행·이용 제한 가정") }
-                OutlinedButton(onClick = { model.setGate(Gate.UNKNOWN) }) { Text("연결 끊김 가정") }
+                OutlinedButton(onClick = { model.simulateGate(Gate.AVAILABLE) }) { Text("주차·이용 가능 가정") }
+                OutlinedButton(onClick = { model.simulateGate(Gate.RESTRICTED) }) { Text("주행·이용 제한 가정") }
+                OutlinedButton(onClick = { model.simulateGate(Gate.UNKNOWN) }) { Text("연결 끊김 가정") }
                 OutlinedButton(onClick = model::addDistance) { Text("모의 누적 거리 +1 km") }
                 OutlinedButton(onClick = model::missingDistance) { Text("거리 미지원 가정") }
             }
