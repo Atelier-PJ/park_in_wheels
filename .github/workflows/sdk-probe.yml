@@ -26,7 +26,10 @@ jobs:
             curl -fLsS --retry 2 "$sdk_base/Vehicle-2.3.2.jar" -o /tmp/vehicle.jar
           fi
           jar tf /tmp/vehicle.jar | grep -E 'Odometer|DistanceDriven|Vehicle.class|CarMileage|DistanceUnit|Unit|Connection'
-          javap -p -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.Vehicle ai.pleos.playground.vehicle.api.Odometer
+          javap -p -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.Vehicle ai.pleos.playground.vehicle.api.Odometer ai.pleos.playground.vehicle.api.model.capability.CapabilityConfig
+          if curl -fLsS "$sdk_base/Vehicle-2.3.2-sources.jar" -o /tmp/vehicle-sources.jar; then
+            unzip -p /tmp/vehicle-sources.jar '*/Odometer.kt' | head -200
+          fi
           for c in $(jar tf /tmp/vehicle.jar | grep -E 'listener/.*Distance.*class$' | sed 's#/#.#g;s/.class$//'); do
             javap -p -classpath /tmp/vehicle.jar "$c"
           done
@@ -38,4 +41,4 @@ jobs:
               if any(k in block[:400] for k in ('getCurrentDistanceDriven(', 'checkCurrentDistanceDrivenCapabilities(', 'registerDistanceDriven(', 'unregisterDistanceDriven(')):
                   print(block[:18000])
           PY
-          find "$ANDROID_HOME/platforms" -name android.car.jar -print
+          javap -p -classpath "$ANDROID_HOME/platforms/android-35/optional/android.car.jar" android.car.Car android.car.drivingstate.CarUxRestrictionsManager android.car.drivingstate.CarUxRestrictions
