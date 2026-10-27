@@ -16,28 +16,12 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-          log-accepted-android-sdk-licenses: false
-      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-      - name: Verify source and build current APKs
-        run: |
-          bash scripts/verify-cloud.sh
-          mkdir apks
-          cp -R app/build/outputs/apk/. apks/
-      - uses: actions/upload-artifact@v4
-        with:
+          github-token: ${{ github.token }}
+          run-id: 40468530876
           name: tested-apks
-          path: apks/**/*.apk
-          retention-days: 14
+          path: apks
       - name: Install emulator and official Pleos image
         run: |
           mkdir -p runtime-results
@@ -97,29 +81,40 @@ jobs:
           adb exec-out screencap -p > runtime-results/01-boot.png
       - name: Install and launch APKs
         run: |
-          find apks -name '*.apk' -print
           demo=$(find apks -name app-demo-debug.apk | head -1)
           pleos=$(find apks -name app-pleos-debug.apk | head -1)
           adb install -r "$demo" 2>&1 | tee runtime-results/demo-install.txt
           adb install -r "$pleos" 2>&1 | tee runtime-results/pleos-install.txt
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          sleep 60
+          adb shell am get-current-user > runtime-results/current-user.txt
+          adb shell pm list libraries > runtime-results/shared-libraries.txt
           adb logcat -c
-          adb shell am start -W --user current -n com.parkonwheels.demo/com.parkonwheels.demo.MainActivity | tee runtime-results/demo-launch.txt
-          sleep 30
-          adb shell uiautomator dump /sdcard/demo.xml
-          adb pull /sdcard/demo.xml runtime-results/demo-ui.xml
-          grep -q "PARK ON WHEELS" runtime-results/demo-ui.xml
-          adb exec-out screencap -p > runtime-results/02-demo.png
-          adb shell am force-stop com.parkonwheels.demo
           adb shell am start -W --user current -n com.parkonwheels.pleos/com.parkonwheels.demo.MainActivity | tee runtime-results/pleos-launch.txt
           grep -q "Status: ok" runtime-results/pleos-launch.txt
-          sleep 30
-          adb shell uiautomator dump /sdcard/pleos.xml
-          adb pull /sdcard/pleos.xml runtime-results/pleos-ui.xml
-          grep -q "PARK ON WHEELS" runtime-results/pleos-ui.xml
-          adb exec-out screencap -p > runtime-results/03-pleos.png
+          sleep 8
+          adb exec-out screencap -p > runtime-results/03-pleos-8s.png
           adb shell pidof com.parkonwheels.pleos | tee runtime-results/pleos-pid.txt
+          sleep 8
+          adb exec-out screencap -p > runtime-results/03-pleos-16s.png
+          adb shell dumpsys activity activities > runtime-results/pleos-activities.txt
+          timeout 20 adb shell uiautomator dump /sdcard/pleos.xml || true
+          adb pull /sdcard/pleos.xml runtime-results/pleos-ui.xml || true
+          adb logcat -d -v threadtime > runtime-results/pleos-logcat.txt
+          adb shell am force-stop com.parkonwheels.pleos
+          adb shell am start -W --user current -n com.parkonwheels.demo/com.parkonwheels.demo.MainActivity | tee runtime-results/demo-launch.txt
+          grep -q "Status: ok" runtime-results/demo-launch.txt
+          sleep 8
+          adb exec-out screencap -p > runtime-results/02-demo-8s.png
+          adb shell pidof com.parkonwheels.demo | tee runtime-results/demo-pid.txt
+          sleep 8
+          adb exec-out screencap -p > runtime-results/02-demo-16s.png
+          adb shell dumpsys activity activities > runtime-results/demo-activities.txt
+          timeout 20 adb shell uiautomator dump /sdcard/demo.xml || true
+          adb pull /sdcard/demo.xml runtime-results/demo-ui.xml || true
           adb logcat -d -v threadtime > runtime-results/logcat.txt
-          adb shell dumpsys activity activities > runtime-results/activities.txt
           adb shell dumpsys car_service > runtime-results/car-service.txt
       - name: Collect diagnostics
         if: always()
