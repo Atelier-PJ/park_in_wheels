@@ -6,16 +6,102 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect official image and host
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40462054815
+          name: park-on-wheels-apks-959a5a16f9e5054dc82b60a61e6cbd1b6124cce1
+          path: apks
+      - name: Install emulator and official Pleos image
         run: |
-          ls -l /dev/kvm || true
-          echo "SDK=$ANDROID_HOME"
-          ls "$ANDROID_HOME/emulator" || true
-          curl --fail --location --retry 2 --max-time 90 'https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-sys-img.xml' -o /tmp/pleos.xml
-          cat /tmp/pleos.xml
+          mkdir -p runtime-results
+          sudo chmod a+rw /dev/kvm
+          df -h .
+          sdkmanager "emulator" "platform-tools" > runtime-results/sdk-install.txt 2>&1
+          curl -fL --retry 2 --max-time 900 'https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp_car_emulator.zip' -o /tmp/pleos.zip
+          echo "b4f858d5bcc6c71506d7edfc872bcb9e5a11acaa  /tmp/pleos.zip" | sha1sum -c -
+          unzip -l /tmp/pleos.zip | head -60 > runtime-results/image-files.txt || true
+          mkdir /tmp/pleos-image
+          unzip -q /tmp/pleos.zip -d /tmp/pleos-image
+          rm /tmp/pleos.zip
+          find /tmp/pleos-image -maxdepth 3 -type f -name source.properties -print -exec cat {} \;
+          props=$(find /tmp/pleos-image -name source.properties | head -1)
+          test -n "$props"
+          image_dir="$ANDROID_HOME/system-images/android-34/pleos_car_emulator/x86_64"
+          mkdir -p "$(dirname "$image_dir")"
+          mv "$(dirname "$props")" "$image_dir"
+          echo "PLEOS_IMAGE=$image_dir" >> "$GITHUB_ENV"
+      - name: Create AVD and boot
+        run: |
+          mkdir -p "$HOME/.android/avd/pleos.avd"
+          printf 'avd.ini.encoding=UTF-8\npath=%s/.android/avd/pleos.avd\ntarget=android-34\n' "$HOME" > "$HOME/.android/avd/pleos.ini"
+          cat > "$HOME/.android/avd/pleos.avd/config.ini" <<EOF
+          avd.ini.encoding=UTF-8
+          abi.type=x86_64
+          hw.cpu.arch=x86_64
+          hw.cpu.ncore=2
+          hw.ramSize=4096
+          hw.lcd.width=1920
+          hw.lcd.height=1080
+          hw.lcd.density=160
+          hw.gpu.enabled=yes
+          hw.gpu.mode=swiftshader_indirect
+          hw.keyboard=yes
+          hw.mainKeys=no
+          disk.dataPartition.size=6G
+          image.sysdir.1=$PLEOS_IMAGE/
+          tag.id=android-automotive
+          tag.display=Pleos Connect v2.1.0 APIs
+          PlayStore.enabled=false
+          showDeviceFrame=no
+          fastboot.forceColdBoot=yes
+          EOF
+          "$ANDROID_HOME/emulator/emulator" -version
+          nohup "$ANDROID_HOME/emulator/emulator" -avd pleos -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > runtime-results/emulator.log 2>&1 &
+          adb start-server
+          timeout 600 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = 1 ]; do sleep 5; done'
+          adb shell getprop > runtime-results/device-properties.txt
+          adb shell pm list packages | grep -Ei 'pleos|vehicle|car' > runtime-results/vehicle-packages.txt
+          adb exec-out screencap -p > runtime-results/01-boot.png
+      - name: Install and launch APKs
+        run: |
+          find apks -name '*.apk' -print
+          demo=$(find apks -name app-demo-debug.apk | head -1)
+          pleos=$(find apks -name app-pleos-debug.apk | head -1)
+          adb install -r "$demo" | tee runtime-results/demo-install.txt
+          adb install -r "$pleos" | tee runtime-results/pleos-install.txt
+          adb logcat -c
+          adb shell am start -W -n com.parkonwheels.demo/com.parkonwheels.demo.MainActivity | tee runtime-results/demo-launch.txt
+          sleep 10
+          adb exec-out screencap -p > runtime-results/02-demo.png
+          adb shell uiautomator dump /sdcard/demo.xml
+          adb pull /sdcard/demo.xml runtime-results/demo-ui.xml
+          adb shell am force-stop com.parkonwheels.demo
+          adb shell am start -W -n com.parkonwheels.pleos/com.parkonwheels.demo.MainActivity | tee runtime-results/pleos-launch.txt
+          sleep 30
+          adb exec-out screencap -p > runtime-results/03-pleos.png
+          adb shell uiautomator dump /sdcard/pleos.xml
+          adb pull /sdcard/pleos.xml runtime-results/pleos-ui.xml
+          adb shell pidof com.parkonwheels.pleos | tee runtime-results/pleos-pid.txt
+          adb logcat -d -v threadtime > runtime-results/logcat.txt
+          adb shell dumpsys activity activities > runtime-results/activities.txt
+          adb shell dumpsys car_service > runtime-results/car-service.txt
+      - name: Collect diagnostics
+        if: always()
+        run: |
+          adb logcat -d -v threadtime > runtime-results/final-logcat.txt 2>/dev/null || true
+          adb exec-out screencap -p > runtime-results/final-screen.png 2>/dev/null || true
+          df -h . > runtime-results/disk.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pleos-runtime-results
+          path: runtime-results/
+          retention-days: 14
