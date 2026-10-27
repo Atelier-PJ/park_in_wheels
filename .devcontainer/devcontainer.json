@@ -1,0 +1,12 @@
+{
+  "name": "Park on Wheels · Android build",
+  "build": { "dockerfile": "Dockerfile", "context": ".." },
+  "remoteUser": "gradle",
+  "containerEnv": { "ANDROID_HOME": "/opt/android-sdk", "ANDROID_SDK_ROOT": "/opt/android-sdk" },
+  "customizations": {
+    "vscode": {
+      "extensions": ["vscjava.vscode-java-pack", "vscjava.vscode-gradle", "fwcd.kotlin"]
+    }
+  },
+  "postCreateCommand": "gradle --version && bash scripts/test-core.sh"
+}
