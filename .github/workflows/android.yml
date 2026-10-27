@@ -1,7 +1,7 @@
-name: Android demo checks
+name: Android demo and Pleos SDK checks
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -31,12 +31,12 @@ jobs:
         with:
           gradle-version: '8.11.1'
       - name: Verify core and build APK
-        run: gradle --no-daemon :core:check :app:lintDebug :app:assembleDebug
-      - name: Upload demo APK
+        run: bash scripts/verify-cloud.sh
+      - name: Upload demo and Pleos APKs
         uses: actions/upload-artifact@v4
         with:
-          name: park-on-wheels-demo-${{ github.sha }}
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: park-on-wheels-apks-${{ github.sha }}
+          path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 7
       - name: Upload lint report
@@ -44,6 +44,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: app/build/reports/lint-results-*.html
           if-no-files-found: ignore
           retention-days: 7

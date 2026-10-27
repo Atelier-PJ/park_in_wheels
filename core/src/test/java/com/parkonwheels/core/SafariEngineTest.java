@@ -58,6 +58,22 @@ public final class SafariEngineTest {
         try { failing.resume(); } catch (IllegalStateException expected) { /* state remains inspectable */ }
         try { failing.onGate(RESTRICTED); } catch (IllegalStateException expected) { /* must still block */ }
         expect(!failing.canPlay() && !failing.readyToHatch(), "Save error cannot override restriction");
+        VehicleReadiness ready = new VehicleReadiness();
+        ready.ux(AVAILABLE);
+        expect(ready.gate(100) == UNKNOWN, "UX alone must not allow gameplay");
+        expect(ready.distance(1000f, 100) == 1000d, "SDK km values preserve units");
+        expect(ready.gate(200) == AVAILABLE, "Fresh SDK value plus UX permits gameplay");
+        expect(ready.gate(5101) == UNKNOWN, "Stale SDK value blocks gameplay");
+        ready.ux(RESTRICTED);
+        expect(ready.gate(9000) == RESTRICTED, "Restriction wins even with stale data");
+        ready.ux(AVAILABLE);
+        ready.distance(Float.NaN, 9001);
+        expect(ready.gate(9001) == UNKNOWN, "NaN cannot establish connection readiness");
+        ready.distance(-1f, 9002);
+        expect(!ready.fresh(9002), "Negative odometer is invalid");
+        ready.distance(1001f, 9003);
+        ready.reset();
+        expect(ready.gate(9004) == UNKNOWN, "Foreground reconnect requires fresh UX and distance");
         System.out.println("PASS: " + assertions + " domain scenario assertions");
     }
 }

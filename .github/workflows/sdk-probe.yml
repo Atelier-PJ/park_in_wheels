@@ -1,0 +1,44 @@
+name: Pleos SDK metadata
+on:
+  push:
+    branches: [work/pleos-integration]
+    paths: ['.github/workflows/sdk-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Inspect official Vehicle SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_base=https://nexus-playground.pleos.ai/repository/maven-releases/ai/pleos/playground/Vehicle/2.3.2
+          if curl -fLsS --retry 2 "$sdk_base/Vehicle-2.3.2.aar" -o /tmp/vehicle.aar; then
+            unzip -p /tmp/vehicle.aar classes.jar > /tmp/vehicle.jar
+          else
+            curl -fLsS --retry 2 "$sdk_base/Vehicle-2.3.2.jar" -o /tmp/vehicle.jar
+          fi
+          jar tf /tmp/vehicle.jar | grep -E 'Odometer|DistanceDriven|Vehicle.class|CarMileage|DistanceUnit|Unit|Connection'
+          javap -p -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.Vehicle ai.pleos.playground.vehicle.api.Odometer ai.pleos.playground.vehicle.api.model.capability.CapabilityConfig
+          if curl -fLsS "$sdk_base/Vehicle-2.3.2-sources.jar" -o /tmp/vehicle-sources.jar; then
+            unzip -p /tmp/vehicle-sources.jar '*/Odometer.kt' | head -200
+          fi
+          for c in $(jar tf /tmp/vehicle.jar | grep -E 'listener/.*Distance.*class$' | sed 's#/#.#g;s/.class$//'); do
+            javap -p -classpath /tmp/vehicle.jar "$c"
+          done
+          javap -v -classpath /tmp/vehicle.jar ai.pleos.playground.vehicle.api.Odometer > /tmp/odometer-details.txt
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/odometer-details.txt').read_text()
+          for block in text.split('\n  public '):
+              if any(k in block[:400] for k in ('getCurrentDistanceDriven(', 'checkCurrentDistanceDrivenCapabilities(', 'registerDistanceDriven(', 'unregisterDistanceDriven(')):
+                  print(block[:18000])
+          PY
+          javap -p -classpath "$ANDROID_HOME/platforms/android-35/optional/android.car.jar" android.car.Car android.car.drivingstate.CarUxRestrictionsManager android.car.drivingstate.CarUxRestrictions
