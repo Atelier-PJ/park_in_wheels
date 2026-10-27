@@ -23,6 +23,9 @@ jobs:
         run: |
           mkdir -p runtime-results
           sudo chmod a+rw /dev/kvm
+          sudo rm -rf /usr/share/dotnet "$ANDROID_HOME/ndk"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           df -h .
           sdkmanager "emulator" "platform-tools" > runtime-results/sdk-install.txt 2>&1
           curl -fL --retry 2 --max-time 900 'https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp_car_emulator.zip' -o /tmp/pleos.zip
