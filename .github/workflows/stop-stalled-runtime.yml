@@ -1,0 +1,16 @@
+name: Stop stalled runtime diagnostics
+on:
+  push:
+    branches: [test/pleos-emulator]
+    paths: [.github/workflows/stop-stalled-runtime.yml]
+permissions:
+  actions: write
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Cancel only the stalled test run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST repos/Atelier-PJ/park_in_wheels/actions/runs/40464622993/cancel
