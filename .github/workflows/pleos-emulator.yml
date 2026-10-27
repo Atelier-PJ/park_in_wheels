@@ -1,0 +1,21 @@
+name: Pleos emulator runtime
+on:
+  push:
+    branches: [test/pleos-emulator]
+    paths: [.github/workflows/pleos-emulator.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect official image and host
+        run: |
+          ls -l /dev/kvm || true
+          echo "SDK=$ANDROID_HOME"
+          ls "$ANDROID_HOME/emulator" || true
+          curl --fail --location --retry 2 --max-time 90 'https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-sys-img.xml' -o /tmp/pleos.xml
+          cat /tmp/pleos.xml
