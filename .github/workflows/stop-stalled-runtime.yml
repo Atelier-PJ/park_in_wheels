@@ -13,4 +13,4 @@ jobs:
       - name: Cancel only the stalled test run
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh api --method POST repos/Atelier-PJ/park_in_wheels/actions/runs/40464622993/cancel
+        run: gh api --method POST repos/Atelier-PJ/park_in_wheels/actions/runs/40464622993/force-cancel
