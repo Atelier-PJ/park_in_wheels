@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onStart() { super.onStart(); model.foreground() }
     override fun onStop() { model.background(); super.onStop() }
 }
 
@@ -37,7 +38,7 @@ private fun SafariScreen(model: SafariModel) {
         Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(24.dp)
             .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("PARK ON WHEELS", style = MaterialTheme.typography.headlineMedium)
-            Text("DEMO · 모의 차량 데이터 · 실제 Pleos API 미연결", color = Color(0xFFFFD180))
+            Text(model.modeLabel, color = Color(0xFFFFD180))
             Text("테스트 전용 앱입니다. 실제 차량 운행 중 사용하지 마세요.")
             model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (!model.canPlay) {
@@ -53,7 +54,7 @@ private fun SafariScreen(model: SafariModel) {
                     Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("DINO SAFARI", style = MaterialTheme.typography.headlineSmall)
                         Text("탐험 기록을 모아 공룡 알을 부화시켜요.")
-                        Text("모의 이동 ${String.format(Locale.US, "%.1f", model.state.travelledKm)} / 5.0 km")
+                        Text("${if (model.isSimulation) "모의" else "SDK"} 이동 ${String.format(Locale.US, "%.1f", model.state.travelledKm)} / 5.0 km")
                         LinearProgressIndicator(progress = { (model.state.travelledKm / 5.0).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                         Text("공룡 카드 ${model.state.cards}장 · ${model.state.phase}")
                         if (!model.hasDistance) Text("거리 정보 없음 또는 누적 거리 오류. 오류 여정은 취소 후 새로 시작하세요.")
@@ -72,6 +73,8 @@ private fun SafariScreen(model: SafariModel) {
                     }
                 }
             }
+            if (model.canPlay && !model.isSimulation) Text(model.diagnostic)
+            if (model.isSimulation) {
             HorizontalDivider()
             Column(Modifier.fillMaxWidth().background(Color(0xFF28352C)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -83,6 +86,7 @@ private fun SafariScreen(model: SafariModel) {
                 OutlinedButton(onClick = { model.simulateGate(Gate.UNKNOWN) }) { Text("연결 끊김 가정") }
                 OutlinedButton(onClick = model::addDistance) { Text("모의 누적 거리 +1 km") }
                 OutlinedButton(onClick = model::missingDistance) { Text("거리 미지원 가정") }
+            }
             }
         }
     }
