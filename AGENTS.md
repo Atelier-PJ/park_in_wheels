@@ -25,4 +25,4 @@ Android Kotlin/Compose + Java core. Read `README.md`, `docs/PLEOS_CONNECTION.md`
 
 ## Cloud environment
 
-GitHub Actions builds APKs. GitHub Codespaces is a developer workspace. Codex Cloud is an independent published task environment. `.devcontainer` is not proof that a Codex Cloud environment was created or published. Current cloud setup does not start a Pleos emulator; runtime testing uses local Android Studio/Pleos AVD.
+GitHub Actions builds APKs. GitHub Codespaces is a developer workspace. Codex Cloud is an independent published task environment. `.devcontainer` is not proof that a Codex Cloud environment was created or published. The standard cloud setup does not start a Pleos emulator. Optional manual GitHub Actions runtime testing is documented in docs/EMULATOR_TEST.md; local Android Studio/Pleos AVD remains available. Keep full workflow status separate from per-app runtime evidence.
