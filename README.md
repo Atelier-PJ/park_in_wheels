@@ -1,95 +1,69 @@
 # PARK ON WHEELS
 
-주차 중 어린이·보호자가 함께 사용하는 DINO SAFARI Android 앱입니다.
+4~9세 아이와 보호자가 **주차 중 함께 사용하는** 네 가지 테마의 가족 탐험 앱입니다. Kotlin/Compose, Java 여정 엔진, Pleos Vehicle SDK 2.3.2를 사용합니다. 운전자 화면을 덮거나 주행 제한을 우회하지 않습니다.
 
-두 빌드가 있습니다. **실제 차량 운행 중 사용하거나 실차에 배포하지 마세요.**
+## 구현된 경험
 
-| 빌드 | 데이터 | 패키지 | 모의 입력 패널 |
-|---|---|---|---|
-| `demoDebug` | 명시적인 모의 거리·제한 | `com.parkonwheels.demo` | 있음 |
-| `pleosDebug` | Vehicle SDK 2.3.2 + CarUxRestrictions | `com.parkonwheels.pleos` | 없음 |
+- 다이노 사파리 / 매직 캐슬 / 스페이스 포트 / 오션 서브마린의 독자 제작 벡터 일러스트.
+- 테마별 두 가지 이야기, 세 개의 선택 미션, 엔딩과 보상 스탬프. 다음 방문에는 다른 이야기를 번갈아 제공합니다.
+- 역할 선택, 탑승권, 에피소드 번호, 가족 여행 패스포트와 날짜별 기록.
+- **주차 중 짧은 탐험:** 세 미션 후 엔딩. 실제 거리를 생성하거나 증가시키지 않습니다.
+- **이동 기록 탐험:** 실제 누적 거리 5km와 세 미션 후, 다시 주차한 상태에서 엔딩. 내비 목적지 도착을 의미하지 않습니다.
+- 세션·테마·역할·미션·설정·스탬프를 하나의 로컬 저장으로 반영. 재시작 시 PAUSED, 재개는 수동 확인.
+- 보호자 확인 영역, 기록 삭제 확인, 차분한 엔딩 장식 설정. 결제와 서버 계정은 없습니다.
+- 넓은 창에서는 장면과 미션을 나란히 배치하고 좁은 창에서는 세로 배치합니다.
 
-SDK 연동 코드와 실제 런타임 검증은 구분합니다. APK 빌드 통과만으로 에뮬레이터 API 호출 성공을 주장하지 않습니다. 실제 호출 증빙은 로컬 Pleos AVD에서 수집해야 합니다.
+## 음성
 
-## 현재 구현
+주차 중 선택지 읽기와 음성 선택을 연결했습니다. 한국어 **오프라인 TTS 음성**과 Android 31 이상 **기기 내 SpeechRecognizer**가 있는 기기에서 사용할 수 있습니다. 엔진 미지원·권한 거부·인식 실패 시 터치로 동일한 미션을 수행합니다. 네트워크 인식기로 자동 대체하지 않습니다.
 
-- Kotlin/Compose UI, Java 도메인 엔진, demo minSdk 28 / pleos minSdk 29 / compileSdk 35.
-- 탐험 시작 → 제한 시 중단 → 거리 누적 → 수동 재개 → 5km 부화 → 카드 저장.
-- SDK의 capability → 현재 누적 거리 조회 → 변경 리스너 → 해제 흐름.
-- Car 서비스 연결·현재 제한 조회·변경 리스너·제한 해제 후 수동 재개.
-- 메인 스레드의 화면 갱신, 5초 초과 거리 데이터 만료, null/NaN/역행 거리 차단.
-- 앱 중단 시 입력 차단·구독 정리, 복귀 시 상태 재확인, 이전 세대 콜백 무시.
-- 조명·공조 제어·내비·음성·AI 개인화는 이번 범위에 포함하지 않습니다.
+- “첫 번째”, “두 번째”, 선택지의 이름, “다음”, “다시”, “그만”, “깨어나라” 등의 제한된 명령.
+- 안내 후 최대 12초만 듣습니다. 원본 음성·인식 문장은 저장하거나 로그에 남기지 않습니다.
+- 화면 이탈·백그라운드·UX 제한·P 해제·오디오 포커스 상실 시 취소. 통화 중에는 시작하지 않습니다.
+- 주행 중 게임·음성 상호작용은 비활성화되어 있습니다. DO나 오디오 서비스로 우회하지 않습니다.
+- 이 연결은 Android 플랫폼 TTS/STT입니다. 별도의 Pleos TTS/STT 서버 SDK 통합을 완료했다고 주장하지 않습니다.
 
-## 개발 환경 설치와 검증
+## 앰비언트 조명
 
-빈 Linux Codex Cloud 환경:
+보호자 설정에서 켜면 **주차 중에만** 테마별 고정 RGB 색을 적용합니다. 실제 Vehicle Light API, `CAR_LIGHTS` + `CONTROL_CAR_LIGHTS` 권한, `READ_WRITE` capability와 지원 좌석 영역을 확인하고 기존 색을 읽은 다음 적용합니다. 지원·권한·콜백이 불명확하면 변경하지 않습니다.
 
-```bash
-bash scripts/setup-cloud.sh
-```
+밝기·점멸·전조등·실내등 스위치·주행모드 자동 색 설정은 변경하지 않습니다. 주행 중에는 새 명령을 보내지 않습니다. 켜 둔 고정 색은 차량에 남을 수 있습니다. 보호자가 주차 중 기능을 끄면 원래 색을 복원하며, 앱 적용 뒤 차량에서 직접 바꾼 색은 덮어쓰지 않습니다. 강제 종료나 서비스 단절 뒤 원래 색 복원은 보장할 수 없으므로 차량 기본 조명 UI에서도 변경할 수 있습니다.
 
-도구가 준비된 환경(Codespaces·Actions·로컬):
+## 안전과 미연동 범위
 
-```bash
-bash scripts/verify-cloud.sh
-```
+Pleos 빌드는 최신 UX 제한, 실제 기어 P, 최신·유효 누적 거리값을 함께 확인합니다. 속도 0이나 도착 이벤트만으로 주차를 추정하지 않습니다. SDK 콜백은 메인 스레드에서 갱신하며 과거 세대·늦은 기어 콜백은 무시합니다.
 
-JDK 17만 있는 환경에서 도메인 검사:
+내비 도착/ETA, 실제 충전 연계, 주행 중 음성 게임, 실차 검증, 클라우드 동기화는 아직 구현·검증하지 않았습니다. 우주정거장 도킹 미션은 **상상 미션**이며 실제 차량 충전을 제어하지 않습니다.
+
+## 빌드
+
+JDK 17, Gradle 8.11.1, Android platform 35 / build-tools 35.0.0이 필요합니다. `local.properties`의 SDK 경로는 자신의 환경에 맞게 설정합니다.
 
 ```bash
 bash scripts/test-core.sh
+./gradlew :app:assembleDemoDebug :app:assemblePleosDebug :app:lintDemoDebug :app:lintPleosDebug
 ```
 
-JDK 17·Gradle 8.11.1·Android platform 35·build-tools 35.0.0을 사용합니다. 별도 키 없이 공식 Pleos Maven에서 의존성을 내려받습니다. 로컬 Android Studio용 wrapper는 설치된 Gradle로 `gradle wrapper --gradle-version 8.11.1 --distribution-type bin`을 실행해 생성할 수 있습니다.
+| 빌드 | 패키지 | 데이터와 제어 |
+|---|---|---|
+| demoDebug | com.parkonwheels.demo | 보호자 개발 영역의 명시적 모의 입력. 조명은 미리보기만 제공 |
+| pleosDebug | com.parkonwheels.pleos | 실제 Vehicle SDK, CarUxRestrictions, 기어, 거리, 지원 시 조명 |
 
-APK 경로:
+APK: `app/build/outputs/apk/{demo,pleos}/debug/`.
 
-- `app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-- `app/build/outputs/apk/pleos/debug/app-pleos-debug.apk`
+## 검증
 
-## 실제 SDK 테스트
-
-1. Pleos Playground에서 팀 프로젝트를 만들고 Vehicle State 제공 상태를 확인합니다.
-2. Android Studio에 Pleos Connect 전용 AVD를 설치합니다. 기본 Android 이미지에는 Vehicle Service가 없습니다.
-3. 실행 중인 AVD의 시리얼을 `adb devices`로 확인합니다.
-4. `pleosDebug` APK를 설치하고 실행합니다.
+- Java 도메인 시나리오: `scripts/test-core.sh` (주차/만료/보상/명령 파싱).
+- 데모 네이티브 모델 통합 검사: 네 테마, 저장 복원, 보상 중복 방지, 다음 에피소드, 주행 제한.
+- Pleos capability 검사는 에뮬레이터에서만 허용하며 실제 P/UX/거리 수신과 음성·조명 지원 상태를 기록합니다. 실제 음성 인식 성공 또는 조명 변경 성공과 구분합니다.
 
 ```bash
-adb -s <serial> install -r app/build/outputs/apk/pleos/debug/app-pleos-debug.apk
-adb -s <serial> shell am start -n com.parkonwheels.pleos/com.parkonwheels.demo.MainActivity
-adb -s <serial> logcat -s ParkOnWheels:I
+./gradlew :app:assembleDemoDebugAndroidTest :app:assemblePleosDebugAndroidTest
+adb install -r app/build/outputs/apk/demo/debug/app-demo-debug.apk
+adb install -r app/build/outputs/apk/androidTest/demo/debug/app-demo-debug-androidTest.apk
+adb shell am instrument -w com.parkonwheels.demo.test/com.parkonwheels.demo.AdventureVerification
 ```
 
-`Vehicle.initialize returned`는 연결 완료 표시가 아닙니다. capability 결과와 `odometer_km=...` 로그, UX 상태를 함께 확인합니다. Virtual Console에서 값을 변경하고 실제 앱 값 갱신·중단·복원까지 확인하세요. 권한·미지원·타임아웃은 게임을 차단합니다.
+Pleos 검사는 해당 SDK APK와 `app-pleos-debug-androidTest.apk` 설치 후 `com.parkonwheels.pleos.test/com.parkonwheels.demo.PleosCapabilityVerification`을 실행합니다. 이 검사는 지원될 경우 에뮬레이터 앰비언트 색을 잠시 적용하고 복원을 시도합니다. 실차에서는 실행하지 않습니다.
 
-검증 후 로그 수집:
-
-```bash
-bash scripts/collect-pleos-evidence.sh <serial>
-```
-
-이 스크립트는 로그를 로컬에 저장하고 자동 업로드하지 않습니다.
-
-## 클라우드 협업
-
-- **GitHub Actions**: PR마다 두 빌드의 lint·컴파일·도메인 검사. 실행의 Artifacts에서 APK ZIP을 받습니다.
-- **GitHub Codespaces**: 해당 브랜치 → Code → Codespaces로 개발 컨테이너를 생성합니다. 브라우저에서 코드 편집·빌드 가능하며 Android UI는 로컬 AVD로 확인합니다.
-- **Codex Cloud**: 별도로 환경을 생성·설치·게시해야 합니다. `.devcontainer` 파일만으로 생성되지 않습니다. [클라우드 설정 안내](docs/CLOUD_SETUP.md)를 따르세요.
-- 팀원 접근은 GitHub 조직·Pleos 프로젝트·Codex Cloud 환경에서 각각 관리합니다.
-
-`work/pleos-integration` PR이 병합되기 전에는 이 개발 브랜치를 선택합니다. `main`은 초기 README만 있는 상태일 수 있습니다.
-
-## 문서와 구조
-
-| 경로 | 내용 |
-|---|---|
-| `core/` | 여정 엔진, 차량 상태 준비·만료 판단, 도메인 시나리오 |
-| `app/src/main/` | 공통 화면·모델·저장 |
-| `app/src/demo/` | 모의 데이터 어댑터 |
-| `app/src/pleos/` | 실제 SDK 어댑터·최소 권한 |
-| [Pleos 연결](docs/PLEOS_CONNECTION.md) | 실제 연결과 증빙 절차 |
-| [클라우드 환경](docs/CLOUD_SETUP.md) | Codex Cloud·네트워크·설치·재사용 |
-| [테스트](docs/TESTING.md) | 수동 시나리오와 검증 범위 |
-
-현재는 단일 여정·카드 수를 동기 로컬 저장하는 초기판입니다. 공룡 에셋·음성·여러 사용자·여정 이력·고급 오류 복구 UX는 후속 범위입니다.
+공식 정책: https://document.pleos.ai/docs/pleos-only/distribute/app-review-guide/review-driver-distraction-elements

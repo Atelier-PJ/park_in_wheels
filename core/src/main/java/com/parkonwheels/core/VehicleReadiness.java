@@ -6,7 +6,10 @@ public final class VehicleReadiness {
     private VehicleGateway.Gate ux = VehicleGateway.Gate.UNKNOWN;
     private Double kilometres;
     private long receivedAt;
-    public void reset() { ux = VehicleGateway.Gate.UNKNOWN; kilometres = null; }
+    private Boolean parked;
+    private long parkedAt;
+    public void reset() { ux = VehicleGateway.Gate.UNKNOWN; kilometres = null; parked = null; }
+    public void parked(Boolean value, long now) { parked = value; parkedAt = now; }
     public void ux(VehicleGateway.Gate value) { ux = value; }
     public Double distance(Float value, long now) {
         kilometres = value != null && Float.isFinite(value) && value >= 0 ? value.doubleValue() : null;
@@ -17,8 +20,9 @@ public final class VehicleReadiness {
         return kilometres != null && now >= receivedAt && now - receivedAt <= MAX_AGE_MS;
     }
     public VehicleGateway.Gate gate(long now) {
-        if (ux == VehicleGateway.Gate.RESTRICTED) return ux;
-        return ux == VehicleGateway.Gate.AVAILABLE && fresh(now)
+        if (ux == VehicleGateway.Gate.RESTRICTED || Boolean.FALSE.equals(parked)) return VehicleGateway.Gate.RESTRICTED;
+        return ux == VehicleGateway.Gate.AVAILABLE && fresh(now) && Boolean.TRUE.equals(parked)
+                && now >= parkedAt && now - parkedAt <= MAX_AGE_MS
                 ? VehicleGateway.Gate.AVAILABLE : VehicleGateway.Gate.UNKNOWN;
     }
 }

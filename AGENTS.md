@@ -19,7 +19,9 @@ Android Kotlin/Compose + Java core. Read `README.md`, `docs/PLEOS_CONNECTION.md`
 - Follow CarUxRestrictions; never infer permission from speed 0 or destination arrival.
 - The SDK odometer contract is nullable Float kilometres. Check capability before get/register.
 - UI state must be updated on the main thread and late callbacks ignored after background/disconnect.
-- No lighting/HVAC writes, hidden APIs, VIN, location, voice or secret credentials are required for the current read-only integration.
+- Ambient RGB writes are user-requested: use only typed Light API, granted CAR_LIGHTS + CONTROL_CAR_LIGHTS, READ_WRITE capability, supported areas and fresh parked/UX state. Never write brightness, power, headlamps or HVAC. Never send new light commands while restricted or non-P.
+- Voice uses offline Korean TTS and on-device STT only, explicit foreground initiation and microphone permission. Stop on background, restrictions and audio focus loss. No network fallback, raw voice logging or driving-game bypass.
+- No VIN, location, hidden APIs or secret credentials are required.
 - A successful build only verifies dependencies and compilation. Record emulator callback/UX results separately and never claim a mock or compile check as actual SDK execution evidence.
 - Do not install on or test with a moving real vehicle.
 

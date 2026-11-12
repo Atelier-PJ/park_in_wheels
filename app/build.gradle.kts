@@ -9,10 +9,11 @@ android {
     useLibrary("android.car", false)
     defaultConfig {
         applicationId = "com.parkonwheels.demo"
+        testInstrumentationRunner = "com.parkonwheels.demo.AdventureVerification"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0-demo"
+        versionCode = 2
+        versionName = "0.2.0-family"
     }
     flavorDimensions += "vehicle"
     productFlavors {
@@ -21,6 +22,7 @@ android {
             manifestPlaceholders["appLabel"] = "Park on Wheels · DEMO"
         }
         create("pleos") {
+            testInstrumentationRunner = "com.parkonwheels.demo.PleosCapabilityVerification"
             dimension = "vehicle"
             applicationId = "com.parkonwheels.pleos"
             minSdk = 29

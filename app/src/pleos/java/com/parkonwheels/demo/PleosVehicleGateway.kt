@@ -2,6 +2,9 @@ package com.parkonwheels.demo
 
 import ai.pleos.playground.vehicle.Vehicle
 import ai.pleos.playground.vehicle.api.Odometer
+import ai.pleos.playground.vehicle.api.Gear
+import ai.pleos.playground.vehicle.constant.control.VehicleGear
+import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import ai.pleos.playground.vehicle.api.model.capability.AccessType
 import ai.pleos.playground.vehicle.listener.DistanceDrivenListener
 import android.app.Application
@@ -29,6 +32,10 @@ class PleosVehicleGateway(
     private var target: VehicleGateway.Listener? = null
     private var vehicle: Vehicle? = null
     private var odometer: Odometer? = null
+    private var gear: Gear? = null
+    private var gearRequestId = 0L
+    private var gearEventVersion = 0L
+    private var gearListener: GearSelectionListener? = null
     private var car: Car? = null
     private var uxManager: CarUxRestrictionsManager? = null
     private var distanceListener: DistanceDrivenListener? = null
@@ -39,6 +46,10 @@ class PleosVehicleGateway(
     private var readable = false
     private var eventVersion = 0L
     private var lastMessage = ""
+    private val ambient = AmbientSceneController(application, { vehicle?.getLight() }, {
+        active && readiness.gate(SystemClock.elapsedRealtime()) == Gate.AVAILABLE
+    })
+    override fun ambientColor(color: Int?, report: (String) -> Unit) { ambient.apply(color, report) }
 
     override fun start(listener: VehicleGateway.Listener) {
         target = listener
@@ -53,7 +64,11 @@ class PleosVehicleGateway(
             if (active && epoch == token) action()
         } else handler.post { if (active && epoch == token) action() }
     }
-    private fun publish() { target?.onGate(readiness.gate(SystemClock.elapsedRealtime())) }
+    private fun publish() {
+        val gate = readiness.gate(SystemClock.elapsedRealtime())
+        if (gate != Gate.AVAILABLE) ambient.suspendCommands()
+        target?.onGate(gate)
+    }
     private fun invalidDistance(message: String) {
         readiness.distance(null, SystemClock.elapsedRealtime())
         // Hide gameplay before mutating or persisting domain distance.
@@ -78,6 +93,13 @@ class PleosVehicleGateway(
         try {
             vehicle = Vehicle(application).also { it.initialize() }
             odometer = vehicle!!.getOdometer()
+            gear = vehicle!!.getGear()
+            // SDK 2.3.2 Gear has no capability method. Typed reads require CAR_DRIVE;
+            // denied, unknown and stale values fail closed rather than inferring P from UX.
+            gearListener = object : GearSelectionListener {
+                override fun onSelected(value: VehicleGear?) = dispatch(token) { gearEventVersion++; acceptGear(value) }
+                override fun onFailed(e: Exception) = dispatch(token) { acceptGear(null) }
+            }.also { gear!!.registerGearSelection(it) }
             note("Vehicle.initialize returned; awaiting capability/read callbacks")
             car = Car.createCar(application, handler, Car.CAR_WAIT_TIMEOUT_DO_NOT_WAIT) { connectedCar, ready ->
                 dispatch(token) {
@@ -102,6 +124,15 @@ class PleosVehicleGateway(
         } catch (ex: Exception) {
             invalidDistance("SDK connection error: ${ex.javaClass.simpleName}: ${ex.message}")
         }
+    }
+    private fun acceptGear(value: VehicleGear?, receivedAt: Long = SystemClock.elapsedRealtime()) {
+        readiness.parked(when (value) {
+            null, VehicleGear.GEAR_UNKNOWN -> null
+            VehicleGear.GEAR_PARK -> true
+            else -> false
+        }, receivedAt)
+        publish()
+        note("gear=$value · actual SDK callback")
     }
     private fun acceptUx(value: CarUxRestrictions?) {
         val gate = when {
@@ -128,6 +159,15 @@ class PleosVehicleGateway(
                 invalidDistance("SDK read timeout · awaiting reconnect")
             }
             if (inFlightAt == null) read()
+            val token = epoch
+            val gearId = ++gearRequestId
+            val gearVersion = gearEventVersion
+            try { gear?.getCurrentGearSelectionState(
+                onComplete = { value -> dispatch(token) {
+                    if (gearId == gearRequestId && gearVersion == gearEventVersion) acceptGear(value, now)
+                } },
+                onFailed = { dispatch(token) { if (gearId == gearRequestId) acceptGear(null) } }) }
+            catch (ex: Exception) { acceptGear(null) }
             // Re-query UX as well as listening, so a missed callback is not retained forever.
             try { uxManager?.let { acceptUx(it.currentCarUxRestrictions) } }
             catch (ex: Exception) { readiness.ux(Gate.UNKNOWN); publish(); note("UX refresh failed") }
@@ -183,6 +223,7 @@ class PleosVehicleGateway(
         } catch (ex: Exception) { failed(ex) }
     }
     override fun background() {
+        ambient.suspendCommands()
         active = false
         epoch++
         request++
@@ -193,8 +234,11 @@ class PleosVehicleGateway(
         try { uxManager?.unregisterListener() } catch (ex: Exception) { note("UX cleanup failed") }
         try { car?.disconnect() } catch (ex: Exception) { note("Car disconnect failed") }
         try { distanceListener?.let { odometer?.unregisterDistanceDriven(it) } } catch (ex: Exception) { note("Distance cleanup failed") }
+        try { gearListener?.let { gear?.unregisterGearSelection(it) } } catch (ex: Exception) { note("Gear cleanup failed") }
         try { vehicle?.release() } catch (ex: Exception) { note("Vehicle release failed") }
         uxManager = null
+        gear = null
+        gearListener = null
         car = null
         distanceListener = null
         odometer = null

@@ -42,7 +42,7 @@ public final class SafariEngine implements VehicleGateway.Listener {
         return canPlay() && hasDistance() && state.phase == Phase.ACTIVE
                 && state.travelledKm >= HATCH_DISTANCE_KM;
     }
-    private void update(Snapshot next) { state = next; store.save(next); }
+    private void update(Snapshot next) { store.save(next); state = next; }
 
     @Override public void onGate(VehicleGateway.Gate next) {
         gate = Objects.requireNonNull(next);
@@ -81,6 +81,12 @@ public final class SafariEngine implements VehicleGateway.Listener {
     }
     public boolean hatch() {
         if (!readyToHatch()) return false;
+        update(new Snapshot(Phase.COMPLETE, state.startKm, state.travelledKm, state.cards + 1));
+        return true;
+    }
+    /** A separate, explicitly parked-only content route; never fabricates vehicle distance. */
+    public boolean finishParkedExperience(boolean missionsComplete) {
+        if (!canPlay() || state.phase != Phase.ACTIVE || !missionsComplete) return false;
         update(new Snapshot(Phase.COMPLETE, state.startKm, state.travelledKm, state.cards + 1));
         return true;
     }
