@@ -22,7 +22,7 @@ android {
             manifestPlaceholders["appLabel"] = "Park on Wheels · DEMO"
         }
         create("pleos") {
-            testInstrumentationRunner = "com.parkonwheels.demo.PleosCapabilityVerification"
+            testInstrumentationRunner = providers.gradleProperty("pleosTestRunner").orElse("com.parkonwheels.demo.PleosCapabilityVerification").get()
             dimension = "vehicle"
             applicationId = "com.parkonwheels.pleos"
             minSdk = 29
@@ -39,6 +39,7 @@ android {
 dependencies {
     implementation(project(":core"))
     "pleosImplementation"("ai.pleos.playground:Vehicle:2.3.2")
+    "pleosImplementation"("ai.pleos.playground:SpeechToText:3.3.1")
     implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")

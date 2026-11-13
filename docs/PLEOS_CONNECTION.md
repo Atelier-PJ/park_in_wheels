@@ -45,3 +45,7 @@ APK commit SHA, SDK/Vehicle Service/AVD 버전, 테스트 시각, capability 결
 - https://github.com/Pleos-Playground/pleos-sample-vehicle-app
 
 SDK signature/permission/source contract 확인은 저장소의 `Pleos SDK metadata` Actions 실행에서 재현할 수 있습니다. SDK 버전을 바꾸면 계약과 권한을 재확인하세요.
+
+## SpeechToText connection
+
+The Pleos flavor additionally uses SpeechToText SDK 3.3.1 in `ON_DEVICE` mode with `ko-KR` and the `STT_SERVICE` permission. No server key is configured. Actual initialization and generated-PCM recognition succeeded on the local AVD; details and reproduction commands are in `PLEOS_STT.md`. This evidence is distinct from real vehicle or live child-microphone recognition.

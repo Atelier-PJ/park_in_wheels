@@ -1,0 +1,3 @@
+PASS initialize ON_DEVICE + ko-KR
+finalResultReceived=true; expectedPhraseMatched=true
+PASS real Pleos SDK PCM recognition; not a live microphone / child speech test

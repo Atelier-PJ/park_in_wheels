@@ -1,0 +1,7 @@
+11-13 08:03:24.053 20777 20777 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR
+11-13 08:03:24.203 20777 20777 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR
+11-13 08:07:03.662 24048 24048 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR
+11-13 08:07:05.503 24048 24048 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR
+11-13 08:08:22.868 24048 24048 I ParkOnWheels: Pleos STT request sent
+11-13 08:12:00.669 17187 17187 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR
+11-13 08:12:00.756 17187 17187 I ParkOnWheels: Pleos STT initialized · mode=ON_DEVICE · locale=ko-KR

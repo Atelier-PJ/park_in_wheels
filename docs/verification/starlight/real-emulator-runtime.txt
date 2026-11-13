@@ -1,0 +1,50 @@
+VEHICLE Vehicle.initialize returned; awaiting capability/read callbacks
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+PASS fresh real vehicle P/UX/distance
+LIGHT 차량의 조명 지원 범위를 확인하고 있어요
+LIGHT 차량의 조명 지원 범위를 확인하고 있어요
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+LIGHT 테마 색 적용 0/1곳 · 일부 조명은 적용을 확인하지 못했어요
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+INPUT generated Korean test PCM, not live child microphone
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+PASS real STT final matched authored spell
+STARLIGHT_REQUEST rgb=#FFE5A1
+LIGHT 차량의 조명 지원 범위를 확인하고 있어요
+STAMP_COUNT 1
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+LIGHT 테마 색 적용 0/1곳 · 일부 조명은 적용을 확인하지 못했어요
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+LIGHT_NOT_CONFIRMED 테마 색 적용 0/1곳 · 일부 조명은 적용을 확인하지 못했어요
+FAIL java.lang.IllegalStateException: Stamp state saved but visible stamp UI not found
+	at com.parkonwheels.demo.PleosStarlightJourneyVerification.onStart(PleosStarlightJourneyVerification.kt:125)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2402)
+
+LIGHT 이전 색 복원 0곳 · 직접 바꾼 색 유지 1곳 · 미확인 0곳
+VEHICLE UX=AVAILABLE · activeRestrictions=0
+VEHICLE odometer_km=0.0 · capability=READ · actual SDK callback
+VEHICLE gear=GEAR_PARK · actual SDK callback

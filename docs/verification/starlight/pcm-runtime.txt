@@ -1,0 +1,4 @@
+PASS initialize ON_DEVICE + ko-KR
+finalResultReceived=true; expectedPhraseMatched=true
+PASS real SDK matched PCM → model starlight request + one stamp (fake light gateway)
+PASS real Pleos SDK PCM recognition; not a live microphone / child speech test

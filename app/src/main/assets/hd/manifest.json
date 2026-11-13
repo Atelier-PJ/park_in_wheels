@@ -1,0 +1,178 @@
+[
+  {
+    "theme": "dino",
+    "stage": 0,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2548698,
+    "lossless": true
+  },
+  {
+    "theme": "dino",
+    "stage": 1,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2432508,
+    "lossless": true
+  },
+  {
+    "theme": "dino",
+    "stage": 2,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2634858,
+    "lossless": true
+  },
+  {
+    "theme": "dino",
+    "stage": 3,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2471202,
+    "lossless": true
+  },
+  {
+    "theme": "magic",
+    "stage": 0,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2618898,
+    "lossless": true
+  },
+  {
+    "theme": "magic",
+    "stage": 1,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2543812,
+    "lossless": true
+  },
+  {
+    "theme": "magic",
+    "stage": 2,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2569730,
+    "lossless": true
+  },
+  {
+    "theme": "magic",
+    "stage": 3,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2690786,
+    "lossless": true
+  },
+  {
+    "theme": "space",
+    "stage": 0,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2279272,
+    "lossless": true
+  },
+  {
+    "theme": "space",
+    "stage": 1,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2352408,
+    "lossless": true
+  },
+  {
+    "theme": "space",
+    "stage": 2,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2143542,
+    "lossless": true
+  },
+  {
+    "theme": "space",
+    "stage": 3,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2301842,
+    "lossless": true
+  },
+  {
+    "theme": "ocean",
+    "stage": 0,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2558866,
+    "lossless": true
+  },
+  {
+    "theme": "ocean",
+    "stage": 1,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2780484,
+    "lossless": true
+  },
+  {
+    "theme": "ocean",
+    "stage": 2,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2475848,
+    "lossless": true
+  },
+  {
+    "theme": "ocean",
+    "stage": 3,
+    "size": [
+      1586,
+      992
+    ],
+    "frames": 4,
+    "bytes": 2484808,
+    "lossless": true
+  }
+]

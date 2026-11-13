@@ -1,0 +1,8 @@
+I/ParkOnWheels(24270): ambient acknowledgement desired=ffac85dc actual=ffac85dc
+I/ParkOnWheels(24270): ambient readback desired=ffac85dc actual=ac85dc attempt=1
+I/ParkOnWheels(24270): ambient acknowledgement desired=ffffe5a1 actual=ffffe5a1
+I/ParkOnWheels(24270): ambient readback desired=ffffe5a1 actual=ffe5a1 attempt=1
+I/ParkOnWheels(16059): ambient acknowledgement desired=ffac85dc actual=ffac85dc
+I/ParkOnWheels(16059): ambient readback desired=ffac85dc actual=ac85dc attempt=1
+I/ParkOnWheels(16059): ambient acknowledgement desired=ffffe5a1 actual=ffffe5a1
+I/ParkOnWheels(16059): ambient readback desired=ffffe5a1 actual=ffe5a1 attempt=1

@@ -50,7 +50,7 @@ class PleosCapabilityVerification : Instrumentation() {
                 if(!initialized) SystemClock.sleep(100)
             }
             runOnMainSync {
-                evidence.append("VOICE: offlineTts=${voice!!.ready}; onDeviceStt=${Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(app)}; ${voice!!.status}\n")
+                evidence.append("VOICE: offlineTts=${voice!!.ready}; onDeviceStt=${voice!!.onDeviceAvailable}; ${voice!!.status}; ${voice!!.recognitionStatus}\n")
             }
             evidence.append("PASS: emulator actual parked/UX/odometer established; voice and ambient capability results above are separate from end-to-end success\n")
             result.putString("stream", evidence.toString()); finish(-1,result)

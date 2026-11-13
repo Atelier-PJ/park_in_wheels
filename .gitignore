@@ -13,3 +13,6 @@ local.properties
 .DS_Store
 .local-check/
 .pow-env.sh
+
+.kotlin/
+__pycache__/

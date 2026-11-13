@@ -1,0 +1,10 @@
+11-13 09:51:32.405  5543  5543 I ParkOnWheels: ambient acknowledgement desired=ffac85dc actual=ffac85dc
+11-13 09:51:32.809  5543  5543 I ParkOnWheels: ambient readback desired=ffac85dc actual=ffffff attempt=1
+11-13 09:51:33.611  5543  5543 I ParkOnWheels: ambient readback desired=ffac85dc actual=ffffff attempt=2
+11-13 09:51:34.811  5543  5543 I ParkOnWheels: ambient readback desired=ffac85dc actual=ffffff attempt=3
+11-13 09:51:36.415  5543  5543 I ParkOnWheels: ambient readback desired=ffac85dc actual=ffffff attempt=4
+11-13 09:51:41.692  5543  5543 I ParkOnWheels: ambient acknowledgement desired=ffffe5a1 actual=ffffe5a1
+11-13 09:51:42.096  5543  5543 I ParkOnWheels: ambient readback desired=ffffe5a1 actual=ffffff attempt=1
+11-13 09:51:42.899  5543  5543 I ParkOnWheels: ambient readback desired=ffffe5a1 actual=ffffff attempt=2
+11-13 09:51:44.102  5543  5543 I ParkOnWheels: ambient readback desired=ffffe5a1 actual=ffffff attempt=3
+11-13 09:51:45.705  5543  5543 I ParkOnWheels: ambient readback desired=ffffe5a1 actual=ffffff attempt=4

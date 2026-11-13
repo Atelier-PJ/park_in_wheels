@@ -25,6 +25,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -45,7 +47,13 @@ private val Navy = Color(0xFF24394A)
 private val Muted = Color(0xFF67716F)
 private val Line = Color(0xFFE9E7DF)
 private val Green = Color(0xFF27775A)
+private val SoftWhite = Color(0xFFFFFEFA)
 private val Shape = RoundedCornerShape(28.dp)
+private val TicketPaper = Color(0xFFFFF6DF)
+private val TicketInk = Color(0xFF59452E)
+private val TicketEdge = Color(0xFF957347)
+private val TicketShape = RoundedCornerShape(13.dp)
+private val StoryFont = androidx.compose.ui.text.font.FontFamily(androidx.compose.ui.text.font.Font(R.font.jua_regular))
 
 class MainActivity : ComponentActivity() {
     private val model: SafariModel by viewModels()
@@ -67,21 +75,26 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
-    var page by rememberSaveable { mutableStateOf(if (model.inJourney) "journey" else "home") }
+    var page by rememberSaveable { mutableStateOf(if (model.inJourney) "ticket" else "entrance") }
+    var storyRequested by remember { mutableStateOf(false) }
     var parentGate by remember { mutableStateOf(false) }
     var answer by remember { mutableStateOf("") }
     var cancelDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(model.state.phase) { if (model.state.phase == Phase.ACTIVE || model.state.phase == Phase.COMPLETE) page = "journey" }
+    LaunchedEffect(model.state.phase) {
+        if (model.state.phase == Phase.ACTIVE || model.state.phase == Phase.COMPLETE) page = "journey"
+        else if(model.state.phase == Phase.PAUSED && page == "journey") page = "ticket"
+    }
     LaunchedEffect(page, model.canPlay) { if(page != "journey" || !model.canPlay) voice.stop() }
     Surface(Modifier.fillMaxSize(), color = Paper) {
-        Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 26.dp, vertical = 18.dp)) {
+        Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = if(page=="ticket" || page=="journey") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 12.dp else 26.dp, vertical = if(page=="ticket" || page=="journey") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 10.dp else 18.dp)) {
+            if(page != "home" && page != "entrance" && page != "journey" && page != "ticket" && page != "passport") {
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.widthIn(min=230.dp)) {
                     Text("WONDER WHEELS", fontSize = 10.sp, letterSpacing = 3.sp, color = Green, fontWeight = FontWeight.Bold)
                     Text("PARK ON WHEELS", fontSize = 23.sp, fontWeight = FontWeight.Black, color = Navy, letterSpacing = (-.7).sp)
                 }
                 Row(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFF0F1E9)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    NavPill("탐험", page == "home" || page == "ticket" || page == "journey", model.canPlay) { page = if(model.inJourney) "journey" else "home" }
+                    NavPill("탐험", page == "home" || page == "ticket" || page == "journey", model.canPlay) { page = if(model.inJourney) "ticket" else "home" }
                     NavPill("패스포트", page == "passport", model.canPlay) { page = "passport" }
                     NavPill("보호자", page == "parents", model.canPlay || model.isSimulation) { answer = ""; parentGate = true }
                 }
@@ -92,15 +105,22 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
                 Text(if(model.canPlay) if(model.isSimulation) "모의 주차 · 체험 가능" else "기어 P 확인 · 주차 중 체험" else "안전 상태 확인 중", fontSize = 12.sp, color = Muted)
             }
             Spacer(Modifier.height(18.dp))
+            }
             Box(Modifier.weight(1f)) {
                 if (!model.canPlay && page != "parents") SafetyScreen(model) { cancelDialog = true }
                 else when(page) {
-                    "home" -> WorldSelection(model, onChoose = { model.chooseTheme(it); page = "ticket" }, onContinue = { page = "journey" })
-                    "ticket" -> TicketScreen(model, onBack = { page = "home" }, onStart = { model.start() })
-                    "journey" -> JourneyScreen(model, voice, onHome = { page = "home" }, onPassport = { page = "passport" }, onCancel = { cancelDialog = true })
-                    "passport" -> PassportScreen(model, onExplore = { page = if(model.inJourney) "journey" else "home" })
+                    "entrance" -> ParkEntrance(model.inJourney,model.reducedMotion) { page = if(model.inJourney) "ticket" else "home" }
+                    "home" -> WorldSelection(model, onChoose = { model.chooseTheme(it); page = "ticket" }, onContinue = { page = "ticket" })
+                    "ticket" -> TicketScreen(model, onBack = { page = "home" }, onStart = { storyRequested=true; if(model.inJourney){model.resume();page="journey"} else model.start() })
+                    "journey" -> StoryJourneyScreen(model, voice, autoStart=storyRequested,onStartConsumed={storyRequested=false},onPassport = { page = "passport" }, onCancel = { cancelDialog = true })
+                    "passport" -> PassportScreen(model, voice, onExplore = { page = if(model.inJourney) "ticket" else "home" })
                     "parents" -> ParentScreen(model)
                 }
+            }
+            if(page == "home" || page == "entrance") Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+                if(page == "home" || page == "journey") TextButton(onClick={page="entrance"}){Text("← 공원 입구",fontSize=12.sp,color=Muted)}
+                TextButton(onClick={page="passport"},enabled=model.canPlay){Text("여행 패스포트",fontSize=12.sp,color=Navy)}
+                TextButton(onClick={answer="";parentGate=true},enabled=model.canPlay || model.isSimulation){Text("보호자",fontSize=12.sp,color=Muted)}
             }
         }
     }
@@ -111,78 +131,107 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
 }
 
 @Composable private fun NavPill(label:String, selected:Boolean, enabled:Boolean=true, click:()->Unit) {
-    Surface(shape=RoundedCornerShape(50),color=if(selected)Navy else Color.Transparent) {
-        Box(Modifier.clickable(enabled=enabled,role=Role.Tab,onClick=click).heightIn(min=48.dp).padding(horizontal=17.dp),contentAlignment=Alignment.Center){Text(label,fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(selected)Color.White else Navy)}
+    Surface(shape=RoundedCornerShape(50),color=if(selected)TicketPaper else Color.Transparent) {
+        Box(Modifier.clickable(enabled=enabled,role=Role.Tab,onClick=click).heightIn(min=48.dp).padding(horizontal=17.dp),contentAlignment=Alignment.Center){Text(label,fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(selected)TicketInk else Muted)}
     }
 }
 @Composable private fun Badge(text:String, bg:Color, fg:Color) {
     Text(text,Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal=12.dp,vertical=7.dp),color=fg,fontSize=11.sp,fontWeight=FontWeight.Bold,letterSpacing=.4.sp)
 }
 @Composable private fun SectionLabel(text:String) { Text(text,color=Green,fontSize=11.sp,letterSpacing=2.sp,fontWeight=FontWeight.Bold) }
-@Composable private fun Action(text:String, color:Color=Green, enabled:Boolean=true, modifier:Modifier=Modifier, onClick:()->Unit) {
-    Button(onClick=onClick,enabled=enabled,modifier=modifier.heightIn(min=58.dp),shape=RoundedCornerShape(20.dp),colors=ButtonDefaults.buttonColors(containerColor=color),contentPadding=PaddingValues(horizontal=24.dp,vertical=15.dp)) { Text(text,fontSize=17.sp,fontWeight=FontWeight.Bold) }
+@Composable internal fun Action(text:String, color:Color=Green, enabled:Boolean=true, modifier:Modifier=Modifier, onClick:()->Unit) {
+    Button(onClick=onClick,enabled=enabled,modifier=modifier.heightIn(min=58.dp),shape=TicketShape,
+        border=androidx.compose.foundation.BorderStroke(1.5.dp,if(enabled)TicketEdge else TicketEdge.copy(alpha=.3f)),
+        elevation=ButtonDefaults.buttonElevation(defaultElevation=3.dp,pressedElevation=1.dp,disabledElevation=0.dp),
+        colors=ButtonDefaults.buttonColors(containerColor=TicketPaper,contentColor=TicketInk,disabledContainerColor=TicketPaper.copy(alpha=.5f),disabledContentColor=TicketInk.copy(alpha=.4f)),
+        contentPadding=PaddingValues(horizontal=24.dp,vertical=13.dp)) {
+        Text("✦",fontSize=15.sp,color=if(enabled)Color(0xFFB18745) else TicketEdge.copy(alpha=.3f))
+        Text(text.replace("→", "").trim(),Modifier.padding(horizontal=16.dp),fontSize=21.sp,fontFamily=StoryFont,fontWeight=FontWeight.Normal)
+        Text("✦",fontSize=15.sp,color=if(enabled)Color(0xFFB18745) else TicketEdge.copy(alpha=.3f))
+    }
+}
+
+@Composable private fun ParkEntrance(inJourney:Boolean,reducedMotion:Boolean,onEnter:()->Unit) {
+    val storyFont=StoryFont
+    Box(Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp))) {
+        if(!reducedMotion) DinoSafariGif(Modifier.fillMaxSize().semantics { contentDescription="구름이 흐르고 별이 반짝이는 놀이공원 입구" },assetName="park_entrance_animated.gif")
+        else androidx.compose.foundation.Image(painter=androidx.compose.ui.res.painterResource(R.drawable.park_entrance),contentDescription="공룡 숲, 마법성, 우주 항구, 해저 세계가 펼쳐진 놀이공원 입구",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+        Column(Modifier.align(Alignment.TopCenter).padding(top=22.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+            Text("W O N D E R  W H E E L S",fontSize=11.sp,fontWeight=FontWeight.Bold,color=Green)
+            Text("PARK ON WHEELS",fontSize=40.sp,fontFamily=storyFont,letterSpacing=(.3).sp,color=Navy)
+            Text("우리 차에서 시작되는 작은 놀이공원",fontFamily=storyFont,fontSize=18.sp,color=Navy,modifier=Modifier.padding(top=5.dp))
+        }
+        Action(if(inJourney)"모험 이어가기" else "입장하기",modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=20.dp).widthIn(min=212.dp),onClick=onEnter)
+    }
 }
 
 @Composable private fun WorldSelection(model:SafariModel,onChoose:(String)->Unit,onContinue:()->Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val columns = if (maxWidth < 620.dp) 1 else 2
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        SectionLabel("YOUR LITTLE ADVENTURE")
-        Text("오늘은 어디로 떠나볼까?",fontSize=32.sp,lineHeight=42.sp,fontWeight=FontWeight.ExtraBold,letterSpacing=(-1).sp)
-        Text("우리 차 안에서 시작되는 네 가지 작은 세계",fontSize=15.sp,color=Muted,modifier=Modifier.padding(top=5.dp,bottom=20.dp))
+    Column(Modifier.fillMaxSize(), verticalArrangement=Arrangement.spacedBy(12.dp)) {
         if(model.inJourney) {
-            Surface(color=model.theme.pale,shape=Shape,modifier=Modifier.fillMaxWidth().padding(bottom=18.dp)) {
-                Row(Modifier.padding(20.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("아직 끝나지 않은 모험이 있어요",fontWeight=FontWeight.Bold);Text("${model.theme.name} · ${model.role}",color=Muted,fontSize=13.sp)};Action("이어서 탐험",onClick=onContinue)}
+            Surface(color=model.theme.pale,shape=Shape,modifier=Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(horizontal=18.dp, vertical=12.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("이어서 갈 모험이 있어요",fontWeight=FontWeight.Bold,fontSize=16.sp);Text("${model.theme.name} · ${model.role}",color=Muted,fontSize=12.sp)};Action("계속하기  →",model.theme.accent,modifier=Modifier.heightIn(min=48.dp),onClick=onContinue)}
             }
         }
         for (row in adventureThemes.chunked(columns)) {
-            Row(Modifier.fillMaxWidth().padding(bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-                row.forEachIndexed { index, theme ->
-                    Surface(color=theme.pale,shape=Shape,modifier=Modifier.weight(1f).heightIn(min=214.dp).clickable(enabled=!model.inJourney,role=Role.Button,onClick={onChoose(theme.id)}).semantics { contentDescription="${theme.name}, ${theme.subtitle}, 테마 선택" }) {
-                        Box(Modifier.fillMaxWidth().height(214.dp)) {
-                            ThemeArtwork(theme.id,Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.60f))
-                            Column(Modifier.align(Alignment.CenterStart).padding(22.dp).fillMaxWidth(.57f)) {
-                                Text("0${adventureThemes.indexOf(theme)+1}  /  EXPLORE",fontSize=9.sp,letterSpacing=1.sp,fontWeight=FontWeight.Bold,color=theme.accent)
-                                Spacer(Modifier.height(13.dp));Text(theme.name,fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.ExtraBold,color=Navy)
-                                Text(theme.subtitle,fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=8.dp))
-                                Text("탐험하기  →",fontSize=13.sp,fontWeight=FontWeight.Bold,color=theme.accent,modifier=Modifier.padding(top=16.dp))
+            Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                row.forEach { theme ->
+                    Surface(color=theme.pale,shape=Shape,modifier=Modifier.weight(1f).fillMaxHeight().clickable(enabled=!model.inJourney,role=Role.Button,onClick={onChoose(theme.id)}).semantics { contentDescription="${theme.name}, ${theme.subtitle}, 테마 선택" }) {
+                        Box(Modifier.fillMaxSize()) {
+                            ThemeArtwork(theme.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+                            Box(Modifier.padding(12.dp)) { Badge("${theme.companion}와 함께",SoftWhite.copy(alpha=.94f),theme.accent) }
+                            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent,Color(0xFF172C32).copy(alpha=.7f))))) {
+                                Row(Modifier.padding(horizontal=15.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically) {
+                                    Text(theme.name,Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.ExtraBold,color=Color.White,style=LocalTextStyle.current.copy(shadow=androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha=.4f),androidx.compose.ui.geometry.Offset(0f,2f),5f)))
+                                    Text("↗",Modifier.padding(horizontal=10.dp,vertical=6.dp),fontSize=26.sp,color=Color.White)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        Text("모든 이야기는 앱에 담겨 있어요. 인터넷 없이, 주차 중에 함께해요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=3.dp))
     }
 }
 }
 
 @Composable internal fun TicketScreen(model:SafariModel,onBack:()->Unit,onStart:()->Unit) {
+    androidx.activity.compose.BackHandler(onBack=onBack)
     val t=model.theme
-    AdaptivePanels(left={
-        IllustratedPanel(model,"BOARDING PASS",t.name,"에피소드 ${model.episode} · ${t.chapterTitle(model.episode)}")
-    },right={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            TextButton(onClick=onBack){Text("← 다른 세계 보기",color=Muted)}
-            Text("탐험 준비, 됐나요?",fontSize=28.sp,fontWeight=FontWeight.ExtraBold)
-            Text("${t.companion}와 함께할 오늘의 역할을 골라요.",color=Muted,fontSize=14.sp)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf(t.role,"꼬마 길잡이").forEach{role->FilterChip(selected=model.role==role,onClick={model.chooseRole(role)},label={Text(role)},modifier=Modifier.heightIn(min=52.dp))}}
-            SectionLabel("HOW WE EXPLORE")
-            ModeChoice("주차 중 짧은 탐험","세 가지 미션을 마치면 스탬프를 받아요.",model.mode==ExperienceMode.PARKED,t.accent){model.chooseMode(ExperienceMode.PARKED)}
-            ModeChoice("이동 기록과 함께 탐험","실제 5km 기록 + 주차 미션. 내비 도착과 별개예요.",model.mode==ExperienceMode.DISTANCE,t.accent){model.chooseMode(ExperienceMode.DISTANCE)}
-            Surface(color=Color.White,shape=RoundedCornerShape(18.dp),border=androidx.compose.foundation.BorderStroke(1.dp,Line)) {
-                Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text("나의 여행 탑승권",fontSize=11.sp,color=Muted)
-                    Text("${t.english}  /  EP.${model.episode.toString().padStart(2,'0')}",fontWeight=FontWeight.Bold,fontSize=15.sp,color=t.accent)
-                    Text("${model.role}  ·  ${t.companion}와 함께",fontSize=14.sp)
-                }
-            }
-            if(!model.hasDistance) Text("차량의 거리 정보를 확인 중이에요. 확인 후 출발할 수 있어요.",color=Muted,fontSize=13.sp)
-            Action("탑승권 받고 시작!  →",t.accent,model.hasDistance,Modifier.fillMaxWidth(),onStart)
-            Text("주행 중에는 놀이·음성을 쉬어요. 음성과 테마 조명은 주차 중 지원 범위에서 사용할 수 있어요.",fontSize=12.sp,color=Muted,lineHeight=18.sp)
+    val invitation=when(t.id){
+        "dino"->"쉿, 알 속에서\n누가 부르는 것 같아!"
+        "magic"->"반짝! 우리 목소리가\n마법이 되는 시간."
+        "space"->"다음 정거장은,\n아무도 못 본 행성!"
+        else->"보글보글,\n바다가 부르고 있어!"
+    }
+    val promise=when(t.id){
+        "dino"->"토리와 작은 친구를 만나러 가요."
+        "magic"->"루미와 별빛 성문을 열어 봐요."
+        "space"->"코코와 별빛 항로로 출발해요."
+        else->"버블과 반짝이는 비밀을 찾아요."
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact=maxWidth<600.dp
+        ThemeArtwork(t.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+        Box(Modifier.align(Alignment.TopStart).fillMaxWidth(.73f).fillMaxHeight().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Paper.copy(alpha=.82f),Paper.copy(alpha=.3f),Color.Transparent))))
+        Column(Modifier.align(Alignment.TopStart).padding(start=28.dp,top=24.dp,end=20.dp).fillMaxWidth(if(compact).86f else .64f),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Text("${t.companion}의 초대장",Modifier.clip(RoundedCornerShape(50)).background(Paper.copy(alpha=.9f)).padding(horizontal=13.dp,vertical=7.dp),fontSize=13.sp,color=t.accent)
+            Text(invitation,fontSize=if(compact)29.sp else 36.sp,lineHeight=if(compact)38.sp else 46.sp,color=Navy,style=LocalTextStyle.current.copy(shadow=androidx.compose.ui.graphics.Shadow(Paper.copy(alpha=.8f),androidx.compose.ui.geometry.Offset(0f,1f),6f)))
+            Text(promise,fontSize=17.sp,lineHeight=24.sp,color=Navy)
         }
-    })
+        OutlinedButton(
+            onClick=onBack,
+            modifier=Modifier.align(Alignment.TopEnd).padding(top=16.dp,end=18.dp).heightIn(min=48.dp),
+            shape=RoundedCornerShape(50),
+            border=androidx.compose.foundation.BorderStroke(1.dp,Navy.copy(alpha=.18f)),
+            colors=ButtonDefaults.outlinedButtonColors(containerColor=Paper.copy(alpha=.94f),contentColor=Navy),
+            contentPadding=PaddingValues(horizontal=18.dp,vertical=10.dp)
+        ) { Text("← 홈으로",fontSize=17.sp) }
+        Action("이야기 듣기",enabled=model.hasDistance,modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=26.dp).widthIn(min=220.dp),onClick=onStart)
+    }
 }
+
 @Composable private fun ModeChoice(title:String,description:String,selected:Boolean,accent:Color,click:()->Unit){
     Surface(shape=RoundedCornerShape(18.dp),color=if(selected)accent.copy(alpha=.08f)else Color.White,border=androidx.compose.foundation.BorderStroke(if(selected)2.dp else 1.dp,if(selected)accent else Line),modifier=Modifier.fillMaxWidth().clickable(role=Role.RadioButton,onClick=click)){
         Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
@@ -200,15 +249,50 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
         }
     }
 }
-@Composable private fun IllustratedPanel(model:SafariModel,kicker:String,title:String,subtitle:String,celebration:Boolean=false) {
+@Composable private fun IllustratedPanel(model:SafariModel,kicker:String,title:String,subtitle:String,celebration:Boolean=false,animateDinoPreview:Boolean=false) {
     val t=model.theme
     Surface(color=t.pale,shape=Shape,modifier=Modifier.fillMaxSize()) {
         Column(Modifier.padding(24.dp)) {
             Text(kicker,fontSize=10.sp,letterSpacing=2.sp,fontWeight=FontWeight.Bold,color=t.accent)
             Text(title,fontSize=30.sp,fontWeight=FontWeight.ExtraBold,lineHeight=38.sp,modifier=Modifier.padding(top=12.dp))
             Text(subtitle,fontSize=14.sp,color=Muted,lineHeight=21.sp,modifier=Modifier.padding(top=6.dp))
-            ThemeArtwork(t.id,Modifier.weight(1f).fillMaxWidth().semantics{contentDescription="${t.name}의 친구 ${t.companion} 일러스트"},celebration && !model.reducedMotion)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Badge("OFFLINE READY",Color.White.copy(alpha=.75f),t.accent);Text("WONDER / 0${adventureThemes.indexOf(t)+1}",fontSize=10.sp,color=t.accent,modifier=Modifier.align(Alignment.CenterVertically))}
+            val cleanupScene=t.id=="ocean" && model.episode % 2 == 0 && !animateDinoPreview && !celebration &&
+                ((model.missionStep==1 && model.feedback==null) || (model.missionStep==2 && model.feedback!=null))
+            if(cleanupScene) {
+                Surface(color=SoftWhite,shape=RoundedCornerShape(24.dp),modifier=Modifier.weight(1f).fillMaxWidth().padding(vertical=8.dp)) {
+                    OceanCleanupScene(model.feedback!=null,model.reducedMotion,Modifier.fillMaxSize().padding(8.dp))
+                }
+            } else if (!model.reducedMotion) {
+                Surface(color=SoftWhite,shape=RoundedCornerShape(24.dp),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White),modifier=Modifier.weight(1f).fillMaxWidth().padding(vertical=8.dp)) {
+                    Box(Modifier.fillMaxSize().padding(10.dp), contentAlignment=Alignment.Center) {
+                        DinoSafariGif(Modifier.fillMaxWidth().aspectRatio(16f/9f).clip(RoundedCornerShape(18.dp)).semantics { contentDescription="${t.name} 이야기 장면" },t.id,if(animateDinoPreview) null else if(celebration) 3 else model.missionStep.coerceIn(0,2))
+                    }
+                }
+            } else {
+                Box(Modifier.weight(1f).fillMaxWidth().padding(vertical=8.dp).clip(RoundedCornerShape(24.dp)).background(SoftWhite), contentAlignment=Alignment.Center) {
+                    ThemeArtwork(t.id,Modifier.fillMaxSize().semantics{contentDescription="${t.name}의 친구 ${t.companion} 일러스트"},celebration && !model.reducedMotion,ContentScale.Crop)
+                }
+            }
+            if (kicker == "OUR ADVENTURE" || kicker == "A LITTLE WONDER, FOUND") {
+                AdventureTrail(theme=t, step=if(celebration) 3 else model.missionStep, completed=celebration)
+            } else {
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Badge("OFFLINE STORY",Color.White.copy(alpha=.8f),t.accent);Text("WONDER / 0${adventureThemes.indexOf(t)+1}",fontSize=10.sp,color=t.accent,modifier=Modifier.align(Alignment.CenterVertically))}
+            }
+        }
+    }
+}
+
+@Composable private fun AdventureTrail(theme:AdventureTheme,step:Int,completed:Boolean) {
+    val labels=listOf("만남","발견","선물")
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SoftWhite.copy(alpha=.9f)).padding(horizontal=10.dp,vertical=9.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+        labels.forEachIndexed { index,label ->
+            val reached=completed || index < step
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(23.dp).clip(CircleShape).background(if(reached)theme.accent else theme.pale),contentAlignment=Alignment.Center) {
+                    Text(if(reached)"✓" else "${index+1}",fontSize=11.sp,fontWeight=FontWeight.Bold,color=if(reached)Color.White else theme.accent)
+                }
+                Text(label,fontSize=12.sp,fontWeight=if(index==step && !completed)FontWeight.Bold else FontWeight.Medium,color=if(reached || index==step)theme.accent else Muted)
+            }
         }
     }
 }
@@ -216,17 +300,17 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
 @Composable private fun JourneyScreen(model:SafariModel,voice:VoiceDirector,onHome:()->Unit,onPassport:()->Unit,onCancel:()->Unit) {
     val t=model.theme;val complete=model.state.phase==Phase.COMPLETE
     AdaptivePanels(left={IllustratedPanel(model,if(complete)"A LITTLE WONDER, FOUND"else"OUR ADVENTURE",if(complete)"${t.reward} 발견!"else t.name,if(complete)t.ending else "EP.${model.episode} · ${t.chapterTitle(model.episode)}",complete)},right={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(17.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(11.dp)) {
             if(complete) {
                 SectionLabel("PASSPORT STAMP COLLECTED")
                 Text("우리의 모험을\n기억할 선물이야!",fontSize=31.sp,lineHeight=42.sp,fontWeight=FontWeight.ExtraBold)
                 Text(t.ending,color=Muted,fontSize=16.sp,lineHeight=25.sp)
                 Surface(color=t.pale,shape=Shape,modifier=Modifier.fillMaxWidth()) {Column(Modifier.padding(24.dp)){Text("${t.reward} 스탬프",fontSize=22.sp,fontWeight=FontWeight.Bold,color=t.accent);Text("여행 패스포트에 저장했어요",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}}
                 Action("내 패스포트 보기  →",t.accent,modifier=Modifier.fillMaxWidth(),onClick=onPassport)
-                OutlinedButton(onClick=onHome,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)){Text("다음 에피소드 고르기")}
+                OutlinedButton(onClick=onHome,shape=TicketShape,border=androidx.compose.foundation.BorderStroke(1.dp,TicketEdge),colors=ButtonDefaults.outlinedButtonColors(contentColor=TicketInk,containerColor=SoftWhite),modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)){Text("다음 에피소드 고르기")}
             } else {
                 SectionLabel(if(model.mode==ExperienceMode.PARKED)"PARKED LITTLE ADVENTURE"else"JOURNEY WITH REAL DISTANCE")
-                Text(if(model.state.phase==Phase.PAUSED)"잠깐 쉬어도 괜찮아"else if(model.missionStep==3)"마지막 마법을 완성해요"else"함께 해볼까?",fontSize=29.sp,fontWeight=FontWeight.ExtraBold)
+                Text(if(model.state.phase==Phase.PAUSED)"잠깐 쉬어도 괜찮아"else if(model.missionStep==3)"마지막 장면을 완성해요"else"함께 해볼까?",fontSize=26.sp,fontWeight=FontWeight.ExtraBold)
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("미션 ${model.missionStep} / 3",color=t.accent,fontSize=13.sp,fontWeight=FontWeight.Bold);Text(if(model.mode==ExperienceMode.PARKED)"주차 체험"else String.format(Locale.KOREA,"실제 이동 %.1f / 5.0 km",model.state.travelledKm),fontSize=12.sp,color=Muted)}
                 LinearProgressIndicator(progress={model.progress},modifier=Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),color=t.accent,trackColor=t.pale)
                 VoicePanel(model, voice)
@@ -241,11 +325,11 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
                     }
                     model.missionStep<3 -> {
                         val mission=model.missions[model.missionStep]
-                        Text("0${model.missionStep+1}  ${mission.title}",fontSize=21.sp,fontWeight=FontWeight.Bold)
-                        Text(mission.prompt,fontSize=17.sp,lineHeight=27.sp,color=Muted)
+                        Text("0${model.missionStep+1}  ${mission.title}",fontSize=19.sp,fontWeight=FontWeight.Bold)
+                        Text(mission.prompt,fontSize=16.sp,lineHeight=23.sp,color=Muted)
                         mission.choices.forEachIndexed{index,choice->
-                            OutlinedButton(onClick={model.answer(index)},modifier=Modifier.fillMaxWidth().heightIn(min=68.dp),shape=RoundedCornerShape(20.dp),border=androidx.compose.foundation.BorderStroke(1.5.dp,t.accent.copy(alpha=.35f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=Navy,containerColor=Color.White)){
-                                Text(choice,Modifier.weight(1f),fontSize=18.sp,fontWeight=FontWeight.Bold);Text("→",fontSize=21.sp,color=t.accent)
+                            OutlinedButton(onClick={model.answer(index)},modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),shape=TicketShape,border=androidx.compose.foundation.BorderStroke(1.5.dp,TicketEdge.copy(alpha=.6f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=TicketInk,containerColor=TicketPaper),contentPadding=PaddingValues(horizontal=17.dp,vertical=10.dp)){
+                                Text(choice,Modifier.weight(1f),fontSize=16.sp,fontWeight=FontWeight.Bold);Text("✦",fontSize=17.sp,color=TicketEdge)
                             }
                         }
                     }
@@ -261,28 +345,127 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
     })
 }
 
-@Composable private fun PassportScreen(model:SafariModel,onExplore:()->Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-    val columns = if (maxWidth < 620.dp) 1 else 2
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        SectionLabel("OUR FAMILY PASSPORT")
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("작은 발견, 오래 남는 추억",fontSize=30.sp,fontWeight=FontWeight.ExtraBold);Text("우리가 만난 세계를 한 장씩 모아 봐요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=7.dp))};Badge("${model.stamps.size} STAMPS",Navy,Color.White)}
-        for(row in adventureThemes.chunked(columns)) Row(horizontalArrangement=Arrangement.spacedBy(16.dp)){
-            row.forEach{t->val count=model.stamps.count{it.themeId==t.id}
-                Surface(color=if(count>0)t.pale else Color(0xFFF0F0E9),shape=Shape,modifier=Modifier.weight(1f)){
-                    Row(Modifier.padding(18.dp).heightIn(min=140.dp),verticalAlignment=Alignment.CenterVertically){ThemeArtwork(t.id,Modifier.size(130.dp),count>0);Column(Modifier.weight(1f)){Text(t.name,fontSize=18.sp,fontWeight=FontWeight.Bold);Text(if(count>0)"${t.reward} · ${count}개"else"첫 스탬프를 기다려요",color=if(count>0)t.accent else Muted,fontSize=13.sp,modifier=Modifier.padding(top=8.dp));Text(if(count>0)"다음은 에피소드 ${count+1}"else"탐험을 마치면 여기에!",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=10.dp))}}
+private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"->"마법 배지";"space"->"나의 행성";else->"물고기 도감"}
+
+@Composable private fun PassportScreen(model:SafariModel,voice:VoiceDirector,onExplore:()->Unit) {
+    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    val theme=adventureThemes.firstOrNull{it.id==selected}
+    var detail by remember { mutableStateOf<Int?>(null) }
+    DisposableEffect(Unit) { onDispose { voice.stop() } }
+    androidx.activity.compose.BackHandler(enabled=detail!=null || selected!=null) {
+        voice.stop();if(detail!=null)detail=null else selected=null
+    }
+    Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if(theme==null)"나의 보물 수집함" else collectionTitle(theme.id),fontSize=27.sp,color=Navy)
+                Text(if(theme==null)"어떤 친구들을 만났는지 펼쳐 볼까?" else "${theme.companion}와 함께 모으는 작은 보물",fontSize=14.sp,color=Muted)
+            }
+            TextButton(onClick={if(theme==null)onExplore() else selected=null}) { Text(if(theme==null)"← 테마로" else "← 수집함",color=Navy) }
+        }
+        if(theme==null) {
+            adventureThemes.chunked(2).forEach { row ->
+                Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    row.forEach { t ->
+                        Box(Modifier.weight(1f).fillMaxHeight().clip(Shape).clickable(role=Role.Button){selected=t.id}.semantics{contentDescription="${collectionTitle(t.id)} 펼치기"}) {
+                            ThemeArtwork(t.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+                            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent,Color(0xDD18333B)))))
+                            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                                Text(t.name,fontSize=12.sp,color=Color.White.copy(alpha=.9f))
+                                Text(collectionTitle(t.id),fontSize=25.sp,color=Color.White)
+                            }
+                            Text("↗",Modifier.align(Alignment.BottomEnd).padding(18.dp),fontSize=26.sp,color=Color.White)
+                        }
+                    }
+                }
+            }
+        } else {
+            val entries=collectionEntries.getValue(theme.id)
+            val names=entries.map{it.name}
+            Row(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF8EB)).border(1.dp,Color(0xFFE5DBCA),RoundedCornerShape(12.dp))) {
+                // Binding belongs to the notebook rather than to each collectible.
+                androidx.compose.foundation.Canvas(Modifier.width(20.dp).fillMaxHeight().background(theme.pale.copy(alpha=.65f))) {
+                    repeat(6) { i ->
+                        val y=size.height*(i+.5f)/6
+                        drawCircle(Color(0xFFC4BAAA),3.dp.toPx(),androidx.compose.ui.geometry.Offset(size.width*.5f,y))
+                        drawCircle(Paper,1.5.dp.toPx(),androidx.compose.ui.geometry.Offset(size.width*.5f,y))
+                    }
+                }
+                Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal=12.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+                        Text("어떤 보물 이야기를 들어 볼까?",color=Navy,fontSize=16.sp)
+                        Text("미리보기",color=Muted,fontSize=12.sp)
+                    }
+                    names.chunked(3).forEachIndexed { r,row ->
+                        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                            row.forEachIndexed { c,name ->
+                                Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).clickable(role=Role.Button){
+                                    voice.stop();detail=r*3+c
+                                }.semantics{contentDescription="$name, 큰 그림과 설명 듣기"}.padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                                    CollectionCreature(theme.id,r*3+c,Modifier.weight(1f).fillMaxWidth())
+                                    Text(name,fontSize=17.sp,color=Navy,maxLines=1)
+                                }
+                            }
+                        }
+                        if(r==0) HorizontalDivider(color=Color(0xFFE9DFCE),thickness=1.dp)
+                    }
+                    Text("그림을 누르면 크게 보고 이야기를 들을 수 있어요.",fontSize=12.sp,color=Muted)
                 }
             }
         }
-        if(model.stamps.isNotEmpty()) {
-            Text("우리의 여행 기록",fontSize=18.sp,fontWeight=FontWeight.Bold)
-            model.stamps.asReversed().forEach{stamp->val t=adventureThemes.firstOrNull{it.id==stamp.themeId}?:adventureThemes.first()
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(17.dp),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text("${t.reward} · EP.${stamp.episode}",fontWeight=FontWeight.Bold);Text(stamp.role,color=Muted,fontSize=12.sp)};Text(if(stamp.earnedAt==0L)"이전 기록"else SimpleDateFormat("yyyy.MM.dd",Locale.KOREA).format(Date(stamp.earnedAt)),fontSize=12.sp,color=Muted)}
+    }
+    if(theme!=null && detail!=null) {
+        val index=detail!!
+        val entry=collectionEntries.getValue(theme.id)[index]
+        CollectionDetail(theme.id,index,entry,voice,onClose={voice.stop();detail=null})
+    }
+
+}
+
+@Composable private fun CollectionDetail(theme:String,index:Int,entry:CollectionEntry,voice:VoiceDirector,onClose:()->Unit) {
+    // A fresh tap is required to initiate this foreground narration; returning from background never restarts it.
+    var started by remember { mutableStateOf(false) }
+    var speaking by remember { mutableStateOf(false) }
+    LaunchedEffect(voice.ready) {
+        if(voice.ready && !started) {started=true;speaking=true;voice.tell(entry.narration){speaking=false}}
+    }
+    DisposableEffect(Unit) { onDispose { voice.stop() } }
+    androidx.compose.ui.window.Dialog(onDismissRequest=onClose,properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        Surface(Modifier.fillMaxWidth(.94f).fillMaxHeight(.94f),shape=Shape,color=Paper) {
+            Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(entry.name,Modifier.weight(1f),fontSize=27.sp,color=Navy)
+                    TextButton(onClick=onClose){Text("닫기 ×",fontSize=17.sp,color=Navy)}
+                }
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    if(maxWidth>=560.dp) Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)) {
+                        CollectionCreature(theme,index,Modifier.weight(1f).fillMaxHeight())
+                        Text(entry.description,Modifier.weight(1f),fontSize=25.sp,lineHeight=37.sp,color=Navy)
+                    } else Column(Modifier.fillMaxSize(),horizontalAlignment=Alignment.CenterHorizontally) {
+                        CollectionCreature(theme,index,Modifier.weight(1f).fillMaxWidth())
+                        Text(entry.description,fontSize=22.sp,lineHeight=32.sp,color=Navy)
+                    }
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+                    Text(if(!voice.ready)"소리 준비 중" else if(speaking && voice.enabled)"설명을 들려주고 있어요" else "그림 속 친구를 만나 봐요",fontSize=13.sp,color=Muted)
+                    Action("다시 듣기",enabled=voice.ready,onClick={voice.stop();speaking=true;voice.tell(entry.narration){speaking=false}})
+                }
             }
         }
-        Action(if(model.inJourney)"진행 중인 탐험으로  →"else"새로운 모험 만나기  →",modifier=Modifier.fillMaxWidth(),onClick=onExplore)
     }
 }
+
+@Composable private fun CollectionCreature(theme:String,index:Int,modifier:Modifier) {
+    val context=LocalContext.current
+    val sheet=remember(theme) {
+        context.assets.open("collections/${if(theme=="magic")"magic-v2" else theme}.png").use { android.graphics.BitmapFactory.decodeStream(it) }
+    }
+    val tile=remember(sheet,index) {
+        android.graphics.Bitmap.createBitmap(sheet,(index%3)*sheet.width/3,(index/3)*sheet.height/2,sheet.width/3,if(theme=="dino" && index<3)sheet.height/2-24 else sheet.height/2)
+    }
+    androidx.compose.foundation.Image(
+        bitmap=tile.asImageBitmap(),contentDescription=null,
+        modifier=modifier,contentScale=ContentScale.Fit)
 }
 
 @Composable private fun SafetyScreen(model:SafariModel, onReset:()->Unit) {
@@ -383,7 +566,28 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
                 background = Paper, surface = Paper, onSurface = Navy, secondary = Navy,
                 secondaryContainer = Color(0xFFE5EEE2), onSecondaryContainer = Navy,
                 surfaceContainer = Paper, surfaceContainerHigh = Paper, surfaceContainerHighest = Color(0xFFF1F2EC),
-                surfaceTint = Color.Transparent, surfaceVariant = Color(0xFFEBEEE7), onSurfaceVariant = Muted), typography = Typography()) {
+                surfaceTint = Color.Transparent, surfaceVariant = Color(0xFFEBEEE7), onSurfaceVariant = Muted), typography = StoryTypography()) {
         content()
     }
+}
+
+private fun StoryTypography(): Typography {
+    val base=Typography()
+    return base.copy(
+        displayLarge=base.displayLarge.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        displayMedium=base.displayMedium.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        displaySmall=base.displaySmall.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        headlineLarge=base.headlineLarge.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        headlineMedium=base.headlineMedium.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        headlineSmall=base.headlineSmall.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        titleLarge=base.titleLarge.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        titleMedium=base.titleMedium.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        titleSmall=base.titleSmall.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        bodyLarge=base.bodyLarge.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        bodyMedium=base.bodyMedium.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        bodySmall=base.bodySmall.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        labelLarge=base.labelLarge.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        labelMedium=base.labelMedium.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal),
+        labelSmall=base.labelSmall.copy(fontFamily=StoryFont,fontWeight=FontWeight.Normal)
+    )
 }

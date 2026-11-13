@@ -17,10 +17,11 @@ import java.util.UUID
 data class PassportStamp(val id: String, val themeId: String, val episode: Int, val role: String, val earnedAt: Long)
 enum class ExperienceMode { PARKED, DISTANCE }
 
-class SafariModel(application: Application) : AndroidViewModel(application) {
+class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?, preferenceName: String) : AndroidViewModel(application) {
+    constructor(application: Application) : this(application, null, "safari_demo_v1")
     private val handler = Handler(Looper.getMainLooper())
     private var cleared = false
-    private val prefs = application.getSharedPreferences("safari_demo_v1", 0)
+    private val prefs = application.getSharedPreferences(preferenceName, 0)
     private val saved = runCatching { JSONObject(prefs.getString("session", "{}")!!) }.getOrElse { JSONObject() }
     var themeId by mutableStateOf(saved.optString("theme", "dino")); private set
     var role by mutableStateOf(saved.optString("role", "공룡 탐험대원")); private set
@@ -30,6 +31,9 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
     var ambientEnabled by mutableStateOf(saved.optBoolean("ambientEnabled", false)); private set
     var ambientStatus by mutableStateOf("테마 조명은 보호자 설정에서 켤 수 있어요"); private set
     private var effectKey: String? = null
+    private var starlightScene = false
+    private var ambientEpoch = 0L
+    companion object { const val STARLIGHT_RGB = 0xFFE5A1 }
     var reducedMotion by mutableStateOf(saved.optBoolean("reducedMotion", false)); private set
     var stamps by mutableStateOf(if (saved.has("stamps")) readStamps(saved.optJSONArray("stamps")) else List(saved.optInt("cards", 0).coerceIn(0, 10000)) { PassportStamp("legacy-$it", "dino", it + 1, "공룡 탐험대원", 0) }); private set
     private var savedCardCount = saved.optInt("cards", 0)
@@ -60,7 +64,7 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
     var hasDistance by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var diagnostic by mutableStateOf("연결 확인 전"); private set
-    private val vehicle: AppVehicleGateway = createVehicleGateway(application) { message ->
+    private val vehicle: AppVehicleGateway = gatewayOverride ?: createVehicleGateway(application) { message ->
         main { diagnostic = message; Log.i("ParkOnWheels", message) }
     }
     val theme get() = adventureThemes.firstOrNull { it.id == themeId } ?: adventureThemes.first()
@@ -85,15 +89,39 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
     }
     private fun refresh() {
         state = engine.snapshot(); gate = engine.gate(); hasDistance = engine.hasDistance()
-        if (!canPlay) { effectKey = null; if(ambientEnabled) ambientStatus = "주행·연결 확인 중에는 조명 명령을 멈춰요" }
+        if (!canPlay) { effectKey = null; ambientEpoch++; starlightScene = false; if(ambientEnabled) ambientStatus = "주행·연결 확인 중에는 조명 명령을 멈춰요" }
         else if(ambientEnabled) {
-            val key = theme.id
+            val key = if(theme.id=="magic" && starlightScene) "magic:starlight" else theme.id
             if(effectKey != key) {
                 effectKey = key
-                val color = when(theme.id) { "magic" -> 0xAC85DC; "space" -> 0x719EE9; "ocean" -> 0x55B9BF; else -> 0x74B37C }
-                vehicle.ambientColor(color) { text -> main { ambientStatus = text; Log.i("ParkOnWheels", "ambient: $text") } }
+                val color = if(starlightScene && theme.id=="magic") STARLIGHT_RGB else when(theme.id) { "magic" -> 0xAC85DC; "space" -> 0x719EE9; "ocean" -> 0x55B9BF; else -> 0x74B37C }
+                requestAmbient(color)
             }
         }
+    }
+    private fun requestAmbient(color: Int?) {
+        val token=++ambientEpoch
+        try {
+            vehicle.ambientColor(color) { text -> main {
+                if(token==ambientEpoch && canPlay) {
+                    ambientStatus=text
+                    Log.i("ParkOnWheels", "ambient: $text")
+                }
+            } }
+        } catch(error: Exception) {
+            ambientStatus="조명은 쉬어 가요. 스탬프는 받을 수 있어요."
+            Log.w("ParkOnWheels", "ambient request unavailable")
+        }
+    }
+    /** Called only after VoiceDirector matches the authored final phrase, never from touch fallback. */
+    fun completeRecognizedFinale() {
+        if(!canFinish)return
+        if(theme.id=="magic" && ambientEnabled) {
+            starlightScene=true
+            effectKey="magic:starlight"
+            requestAmbient(STARLIGHT_RGB)
+        }
+        hatch()
     }
     private fun act(action: () -> Unit) {
         try { action() } catch (ex: Exception) {
@@ -105,6 +133,7 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
         if (!canPlay || inJourney) return@act
         val nextTheme = adventureThemes.firstOrNull { it.id == id } ?: return@act
         if (engine.snapshot().phase == SafariEngine.Phase.COMPLETE) engine.cancel()
+        starlightScene=false; ambientEpoch++
         themeId = nextTheme.id
         role = theme.role; missionStep = 0; feedback = null; persist(engine.snapshot())
     }
@@ -112,13 +141,14 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
     fun chooseMode(value: ExperienceMode) = act { if (canPlay && !inJourney) { mode = value; persist(engine.snapshot()) } }
     fun changeAmbient(value: Boolean) = act {
         if (!canPlay) return@act
-        ambientEnabled = value; effectKey = null; persist(engine.snapshot())
-        if(!value) vehicle.ambientColor(null) { text -> main { ambientStatus = text; Log.i("ParkOnWheels", "ambient: $text") } }
+        ambientEnabled = value; effectKey = null; starlightScene=false; ambientEpoch++; persist(engine.snapshot())
+        if(!value) requestAmbient(null)
     }
     fun retryAmbient() { if(canPlay) { effectKey = null; refresh() } }
     fun changeReducedMotion(value: Boolean) = act { if (canPlay) { reducedMotion = value; persist(engine.snapshot()) } }
     fun start() = act {
         if (!canPlay || !hasDistance || inJourney) return@act
+        starlightScene=false; effectKey=null; ambientEpoch++
         missionStep = 0; feedback = null; engine.start()
     }
     fun answer(index: Int) = act {
@@ -137,6 +167,7 @@ class SafariModel(application: Application) : AndroidViewModel(application) {
     }
     fun cancel() = act {
         if (canResetJourney) {
+            starlightScene=false; effectKey=null; ambientEpoch++
             val reconnect = !engine.hasDistance()
             engine.cancel(); missionStep = 0; feedback = null; persist(engine.snapshot())
             if(reconnect) { vehicle.background(); vehicle.foreground() }
