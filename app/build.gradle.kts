@@ -3,6 +3,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+val releaseStore = providers.environmentVariable("POW_RELEASE_STORE_FILE")
+val releaseStorePassword = providers.environmentVariable("POW_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = providers.environmentVariable("POW_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = providers.environmentVariable("POW_RELEASE_KEY_PASSWORD")
+val releaseSigningReady = listOf(releaseStore, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it.isPresent }
+if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) } && !releaseSigningReady) {
+    throw GradleException("Release signing requires POW_RELEASE_STORE_FILE, POW_RELEASE_STORE_PASSWORD, POW_RELEASE_KEY_ALIAS and POW_RELEASE_KEY_PASSWORD.")
+}
 android {
     namespace = "com.parkonwheels.demo"
     compileSdk = 35
@@ -27,6 +35,23 @@ android {
             applicationId = "com.parkonwheels.pleos"
             minSdk = 29
             manifestPlaceholders["appLabel"] = "Park on Wheels · SDK TEST"
+        }
+    }
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("submission") {
+                storeFile = file(releaseStore.get())
+                storePassword = releaseStorePassword.get()
+                keyAlias = releaseKeyAlias.get()
+                keyPassword = releaseKeyPassword.get()
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isDebuggable = false
+            manifestPlaceholders["appLabel"] = "PARK ON WHEELS"
+            if (releaseSigningReady) signingConfig = signingConfigs.getByName("submission")
         }
     }
     buildFeatures { compose = true }
