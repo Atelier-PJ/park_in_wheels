@@ -6,7 +6,7 @@
 
 **[제출용 release APK 다운로드 페이지](https://github.com/Atelier-PJ/park_in_wheels/releases/tag/competition-2026-v1)**
 
-- 파일명: `WONDER WHEELS_PARK ON WHEELS_release.apk`
+- 파일명: `WONDERWHEELS_PARKONWHEELS_release.apk`
 - 위치: 위 GitHub Release의 **Assets**. APK가 Git 저장소의 단일 파일 용량 한도를 초과하여 Releases로 제공합니다. `apk/README.md`에도 동일한 링크를 제공합니다.
 - 빌드: `pleosRelease`, 패키지 `com.parkonwheels.pleos`, 버전 `0.2.0-family` (2). 전용 release 키로 서명하고 디버그 기능을 비활성화합니다.
 - 최종 소스 커밋과 APK SHA256은 Release 본문 및 `apk/README.md`에서 확인할 수 있습니다. Actions의 일시 보관 debug 산출물과 구분해 주세요.
@@ -20,7 +20,7 @@ Pleos Connect API 34 에뮬레이터 또는 지원 Pleos 기기에서 실행합�
 
 ```bash
 adb devices
-adb -e install -r "/다운로드/경로/WONDER WHEELS_PARK ON WHEELS_release.apk"
+adb -e install -r "/다운로드/경로/WONDERWHEELS_PARKONWHEELS_release.apk"
 adb -e shell am start --user current -n com.parkonwheels.pleos/com.parkonwheels.demo.MainActivity
 ```
 

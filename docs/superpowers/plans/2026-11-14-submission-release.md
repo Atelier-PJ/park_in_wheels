@@ -6,7 +6,7 @@
 **Spec:** Competition instructions supplied by the user on 2026-11-14, including updated private-repository policy.
 
 ## Constraints and review focus
-- Filename: WONDER WHEELS_PARK ON WHEELS_release.apk.
+- Filename: WONDERWHEELS_PARKONWHEELS_release.apk.
 - APK must be release, signed, non-debuggable and executable.
 - Keep keystore/passwords outside Git; fail explicit release builds if signing is absent.
 - Existing debug builds must remain usable without release credentials.
@@ -17,4 +17,4 @@
 - [x] Add env signing and release label in app/build.gradle.kts; build assemblePleosRelease and lintPleosRelease; run core checks.
 - [x] Verify apksigner, zipalign, manifest; install exact signed release on Pleos emulator and launch.
 - [x] Update README and apk/README.md with install, environment, settings, asset link, SHA256 and release reproduction.
-- [ ] Commit/push source, create GitHub release pointing at submission commit, upload and verify APK asset; report full commit and release URL.
+- [x] Commit/push source, create GitHub release pointing at submission commit, upload and verify APK asset; report full commit and release URL.
