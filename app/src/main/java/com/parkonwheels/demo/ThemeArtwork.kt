@@ -4,8 +4,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
@@ -29,14 +34,23 @@ fun ThemeArtwork(
         "ocean" -> R.drawable.adventure_ocean_storybook
         else -> R.drawable.adventure_dino_storybook
     }
+    val context=LocalContext.current
+    val bitmap by produceState<android.graphics.Bitmap?>(null,image) {
+        value=withContext(Dispatchers.IO) {
+            android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(context.resources,image)) { decoder,info,_ ->
+                val scale=minOf(1f,1280f/maxOf(info.size.width,info.size.height))
+                decoder.setTargetSize((info.size.width*scale).toInt().coerceAtLeast(1),(info.size.height*scale).toInt().coerceAtLeast(1))
+            }
+        }
+    }
     Box(modifier) {
-        Image(
-            painter = painterResource(image),
+        bitmap?.let { art -> Image(
+            bitmap = art.asImageBitmap(),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag("theme-art-$id"),
             contentScale = contentScale,
             alignment = alignment,
-        )
+        ) }
         if (celebration) CelebrationOverlay(Modifier.fillMaxSize())
     }
 }

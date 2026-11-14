@@ -17,7 +17,7 @@ android {
     useLibrary("android.car", false)
     defaultConfig {
         applicationId = "com.parkonwheels.demo"
-        testInstrumentationRunner = "com.parkonwheels.demo.AdventureVerification"
+        testInstrumentationRunner = providers.gradleProperty("testRunner").orElse("com.parkonwheels.demo.AdventureVerification").get()
         minSdk = 28
         targetSdk = 34
         versionCode = 2
@@ -30,7 +30,7 @@ android {
             manifestPlaceholders["appLabel"] = "Park on Wheels · DEMO"
         }
         create("pleos") {
-            testInstrumentationRunner = providers.gradleProperty("pleosTestRunner").orElse("com.parkonwheels.demo.PleosCapabilityVerification").get()
+            testInstrumentationRunner = providers.gradleProperty("testRunner").orElse(providers.gradleProperty("pleosTestRunner")).orElse("com.parkonwheels.demo.PleosCapabilityVerification").get()
             dimension = "vehicle"
             applicationId = "com.parkonwheels.pleos"
             minSdk = 29
@@ -70,4 +70,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
 }

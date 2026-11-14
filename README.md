@@ -136,3 +136,9 @@ JDK 17과 위 Android SDK 환경에서 다음 환경변수를 설정합니다. �
 ```
 
 산출물: `app/build/outputs/apk/pleos/release/app-pleos-release.apk`. 서명 설정이 없으면 명시적 release 작업은 실패합니다. debug 빌드는 서명 환경변수 없이 계속 사용할 수 있습니다. 심사용 설치에는 직접 재빌드한 파일보다 위 Release의 서명 완료 APK를 사용해 주세요.
+
+## 화면 흐름 회귀 검사
+
+실행 중인 에뮬레이터에서 `bash scripts/verify-ui.sh`로 네 테마의 전체 화면·녹음 재생·터치 엔딩·저장 복원과 음성 오류/주행 제한/늦은 결과를 검사합니다. 이 검사는 명시적인 모의 입력을 사용합니다.
+
+실제 Pleos 음성·차량 서비스까지 확인하려면 가상 차량을 P에 두고 Virtual Console 탭을 연 채 `bash scripts/verify-starlight.sh`를 실행합니다. 생성된 테스트 PCM을 실제 기기 내 STT에 보내며, 앱의 화면과 음성 처리 경로를 거쳐 RGB 읽기 확인·스탬프·수집함까지 검사합니다. 실제 사람의 마이크와 실차 검증은 별도입니다. [검사 범위와 재현 방법](docs/verification/e2e/README.md).

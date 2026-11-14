@@ -2,67 +2,57 @@ package com.parkonwheels.demo
 
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.Drawable
 import android.widget.ImageView
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/** Lifecycle-scoped offline animation; HD story scenes keep their full composition. */
+/** Decode bundled art away from the UI/vehicle callback thread, bounded to display size. */
 @Composable
 fun DinoSafariGif(modifier: Modifier = Modifier, themeId: String = "dino", stage: Int? = null, assetName: String? = null, crop: Boolean = false, animate: Boolean = true) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val drawable = remember(context, themeId, stage, assetName) {
-        runCatching {
-            ImageDecoder.decodeDrawable(
-                ImageDecoder.createSource(context.assets, assetName ?: if (stage == null) "${themeId}_storybook.gif" else "hd/${themeId}_${stage.coerceIn(0,3)}.webp"),
-            ) as? AnimatedImageDrawable
-        }.getOrNull()
-    }
-
-    if (drawable == null) {
-        Image(
-            painter = painterResource(if(assetName=="park_entrance_animated.gif") R.drawable.park_entrance else when(themeId){"magic"->R.drawable.adventure_magic_storybook;"space"->R.drawable.adventure_space_storybook;"ocean"->R.drawable.adventure_ocean_storybook;else->R.drawable.adventure_dino_storybook}),
-            contentDescription = null,
-            modifier = modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-        )
-        return
-    }
-
-    DisposableEffect(drawable, lifecycleOwner, animate) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> {
-                    if(assetName == "ocean_cleanup.gif") drawable.repeatCount = 0
-                    if(animate) drawable.start() else drawable.stop()
+    val path = assetName ?: if (stage == null) "${themeId}_storybook.gif" else "hd/${themeId}_${stage.coerceIn(0,3)}.webp"
+    val maxEdge = minOf(context.resources.displayMetrics.widthPixels, 1280).coerceAtLeast(320)
+    val drawable by produceState<Drawable?>(null, context, path, maxEdge) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.assets, path)) { decoder, info, _ ->
+                    val scale = minOf(1f, maxEdge.toFloat() / maxOf(info.size.width, info.size.height))
+                    decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
                 }
-                Lifecycle.Event.ON_STOP -> drawable.stop()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        if(assetName == "ocean_cleanup.gif") drawable.repeatCount = 0
-        if(animate) drawable.start() else drawable.stop()
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            drawable.stop()
+            }.getOrNull()
         }
     }
-
-    AndroidView(
-        factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
-        update = { it.scaleType=if(crop) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER; it.setImageDrawable(drawable) },
-        modifier = modifier.fillMaxSize(),
-    )
+    val animation = drawable as? AnimatedImageDrawable
+    DisposableEffect(animation, lifecycleOwner, animate) {
+        fun update() {
+            if(assetName == "ocean_cleanup.gif") animation?.repeatCount = 0
+            if(animate && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) animation?.start() else animation?.stop()
+        }
+        val observer = LifecycleEventObserver { _, _ -> update() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        update()
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer); animation?.stop() }
+    }
+    Box(modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ImageView(it) },
+            update = {
+                it.scaleType = if(crop) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
+                if(it.drawable !== drawable) it.setImageDrawable(drawable)
+            },
+            modifier = Modifier.fillMaxSize(),
+            onRelease = { animation?.stop(); it.setImageDrawable(null) }
+        )
+    }
 }

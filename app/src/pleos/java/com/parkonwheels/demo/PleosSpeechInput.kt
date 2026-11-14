@@ -17,7 +17,10 @@ import java.util.Locale
 internal fun createPleosSpeechInput(context: Context): SpeechInput? = PleosSpeechInput(context)
 
 /** Pleos ON_DEVICE only. No server authentication, network fallback, or raw audio logging. */
-internal class PleosSpeechInput(context: Context) : SpeechInput {
+internal class PleosSpeechInput(
+    context: Context,
+    private val requestInput: (SpeechToText) -> Unit = { it.request() }
+) : SpeechInput {
     private val main=Handler(Looper.getMainLooper())
     private var closed=false
     private var generation=0L
@@ -64,14 +67,14 @@ internal class PleosSpeechInput(context: Context) : SpeechInput {
             } }
             override fun onUpdatedEpdData(on:Long,off:Long) = Unit
             override fun onUpdatedRms(rms:Double) = Unit
-            override fun onEndedRecognition() { main.postDelayed({
-                if(!closed && token==generation && !finished){finished=true;onError("주문을 듣지 못했어요. 다시 말해 주세요")}
-            },250) }
+            // End-of-input is not a final result. VoiceDirector owns the bounded timeout;
+            // a final result may legitimately arrive after the SDK's end notification.
+            override fun onEndedRecognition() = Unit
             override fun onError(errorType:ErrorType) { main.post {
                 if(!closed && token==generation && !finished){finished=true;status=message(errorType);Log.w("ParkOnWheels","Pleos STT recognition failed: ${errorType.name}");onError(status)}
             } }
         }
-        try {listener=result;sdk!!.addListener(result);sdk!!.request();Log.i("ParkOnWheels","Pleos STT request sent")}
+        try {listener=result;sdk!!.addListener(result);requestInput(sdk!!);Log.i("ParkOnWheels","Pleos STT request sent")}
         catch(e:Exception){cancel();onError("차량 마이크를 시작하지 못했어요. 다시 시작해 주세요")}
     }
     override fun cancel() {

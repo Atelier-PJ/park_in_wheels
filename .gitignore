@@ -16,3 +16,6 @@ local.properties
 
 .kotlin/
 __pycache__/
+
+# Local development tools, emulator images and build output
+.local/

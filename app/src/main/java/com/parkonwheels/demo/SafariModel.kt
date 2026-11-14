@@ -21,6 +21,11 @@ class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?,
     constructor(application: Application) : this(application, null, "safari_demo_v1")
     private val handler = Handler(Looper.getMainLooper())
     private var cleared = false
+    private val playbackStops=mutableSetOf<()->Unit>()
+    internal fun onPlaybackBlocked(stop:()->Unit):()->Unit {
+        playbackStops.add(stop)
+        return { playbackStops.remove(stop) }
+    }
     private val prefs = application.getSharedPreferences(preferenceName, 0)
     private val saved = runCatching { JSONObject(prefs.getString("session", "{}")!!) }.getOrElse { JSONObject() }
     var themeId by mutableStateOf(saved.optString("theme", "dino")); private set
@@ -79,7 +84,11 @@ class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?,
     val progress get() = if (mode == ExperienceMode.PARKED) missionStep / 3f else (state.travelledKm / 5.0).toFloat().coerceIn(0f, 1f)
     init {
         vehicle.start(object : VehicleGateway.Listener {
-            override fun onGate(value: VehicleGateway.Gate) = main { act { if (value != VehicleGateway.Gate.AVAILABLE) feedback = null; engine.onGate(value) } }
+            override fun onGate(value: VehicleGateway.Gate) = main { act {
+                if(value != engine.gate()) Log.i("ParkOnWheels", "journey gate=${engine.gate()}->$value phase=${engine.snapshot().phase} mission=$missionStep")
+                if (value != VehicleGateway.Gate.AVAILABLE) feedback = null
+                engine.onGate(value)
+            } }
             override fun onOdometer(kilometres: Double?) = main { act { engine.onOdometer(kilometres) } }
         })
     }
@@ -89,7 +98,7 @@ class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?,
     }
     private fun refresh() {
         state = engine.snapshot(); gate = engine.gate(); hasDistance = engine.hasDistance()
-        if (!canPlay) { effectKey = null; ambientEpoch++; starlightScene = false; if(ambientEnabled) ambientStatus = "주행·연결 확인 중에는 조명 명령을 멈춰요" }
+        if (!canPlay) { playbackStops.toList().forEach{it()}; effectKey = null; ambientEpoch++; starlightScene = false; if(ambientEnabled) ambientStatus = "주행·연결 확인 중에는 조명 명령을 멈춰요" }
         else if(ambientEnabled) {
             val key = if(theme.id=="magic" && starlightScene) "magic:starlight" else theme.id
             if(effectKey != key) {
@@ -114,14 +123,18 @@ class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?,
         }
     }
     /** Called only after VoiceDirector matches the authored final phrase, never from touch fallback. */
-    fun completeRecognizedFinale() {
-        if(!canFinish)return
+    fun completeRecognizedFinale(): Boolean {
+        if(!canFinish) {
+            Log.i("ParkOnWheels", "finale blocked phase=${state.phase} gate=$gate distance=$hasDistance mission=$missionStep")
+            return false
+        }
         if(theme.id=="magic" && ambientEnabled) {
             starlightScene=true
             effectKey="magic:starlight"
             requestAmbient(STARLIGHT_RGB)
         }
         hatch()
+        return state.phase == SafariEngine.Phase.COMPLETE
     }
     private fun act(action: () -> Unit) {
         try { action() } catch (ex: Exception) {
@@ -185,5 +198,5 @@ class SafariModel(application: Application, gatewayOverride: AppVehicleGateway?,
     fun missingDistance() = act { vehicle.simulation?.missingDistance() }
     fun foreground() = act { vehicle.foreground() }
     fun background() = act { feedback = null; engine.onGate(VehicleGateway.Gate.UNKNOWN); vehicle.background() }
-    override fun onCleared() { cleared = true; vehicle.close(); handler.removeCallbacksAndMessages(null) }
+    override fun onCleared() { cleared = true; playbackStops.clear(); vehicle.close(); handler.removeCallbacksAndMessages(null) }
 }

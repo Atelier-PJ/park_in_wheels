@@ -23,7 +23,9 @@ import com.parkonwheels.core.VoiceChoiceParser
 import java.util.Locale
 
 /** Foreground, parked-only voice interaction. Never falls back to a network recognizer. */
-class VoiceDirector(private val context: Context, private val allowed: () -> Boolean) {
+class VoiceDirector(private val context: Context,
+                    private val pleosInput: SpeechInput? = createPleosSpeechInput(context),
+                    private val allowed: () -> Boolean) {
     private val main = Handler(Looper.getMainLooper())
     private val audio = context.getSystemService(AudioManager::class.java)
     private var epoch = 0L
@@ -33,7 +35,6 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
     private var closed = false
     private var focusHeld = false
     private var recognizer: SpeechRecognizer? = null
-    private val pleosInput = createPleosSpeechInput(context)
     private var callback: ((Int) -> Unit)? = null
     private var choices = emptyList<String>()
     private var narration = ""
@@ -42,7 +43,7 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
     private var withMicrophone = false
     private var guard: Runnable? = null
     var enabled by mutableStateOf(false); private set
-    var ready by mutableStateOf(false); private set
+    var ready by mutableStateOf(recordings != null); private set
     var status by mutableStateOf("한국어 음성 안내 확인 중"); private set
     val onDeviceAvailable get() = pleosInput?.ready ?: (Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context))
     val recognitionStatus get() = pleosInput?.status ?: if(onDeviceAvailable) "기기 내 음성 인식 준비 완료" else "기기 내 음성 인식이 없어요"
@@ -92,7 +93,7 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
         if(phrase != null && (!onDeviceAvailable || context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)) {
             stop("마이크와 기기 내 한국어 음성 인식을 확인해 주세요"); return
         }
-        epoch++; recognizer?.cancel(); guard?.let(main::removeCallbacks)
+        epoch++; recognizer?.cancel(); pleosInput?.cancel(); guard?.let(main::removeCallbacks)
         enabled=true; withMicrophone=phrase!=null; expectedPhrase=phrase
         narration=prompt; choices=emptyList(); narrated=if(phrase==null)done else null
         callback={ if(it==VoiceChoiceParser.FINISH) done() }
@@ -100,7 +101,7 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
     }
     fun present(prompt: String, options: List<String>, action: (Int) -> Unit) {
         if (!enabled || !allowed()) { if(enabled) stop(); return }
-        epoch++; expectedPhrase=null; narrated=null; recognizer?.cancel(); guard?.let(main::removeCallbacks); callback = action; choices = options
+        epoch++; expectedPhrase=null; narrated=null; recognizer?.cancel(); pleosInput?.cancel(); guard?.let(main::removeCallbacks); callback = action; choices = options
         narration = prompt + if (options.isEmpty()) "" else options.mapIndexed { i, text -> " ${if(i == 0) "첫 번째" else "두 번째"}, $text." }.joinToString("") + " 첫 번째나 두 번째, 또는 선택지 이름으로 말해 주세요."
         speak()
     }
@@ -125,7 +126,8 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
                         }
                     }
                     setOnErrorListener { _,_,_->if(token==epoch)stop("안내를 재생하지 못했어요. 다시 시작해 주세요.");true }
-                    prepare();start()
+                    setOnPreparedListener { if(token==epoch && enabled && allowed()) start() }
+                    prepareAsync()
                 }
             } catch(error:Exception){stop("이야기 소리를 재생하지 못했어요. 다시 시작해 주세요.")}
             return
@@ -187,7 +189,13 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
             VoiceChoiceParser.STOP -> stop("음성 탐험을 멈췄어요")
             VoiceChoiceParser.REPEAT -> { epoch++; speak() }
             VoiceChoiceParser.UNKNOWN -> stop("어떤 선택인지 확실하지 않아요. 다시 말하거나 손으로 골라 주세요.")
-            else -> { status = "선택을 들었어요"; callback?.invoke(command) }
+            else -> {
+                val action=callback
+                // Invalidate before invoking application code: duplicate/late finals must not
+                // complete a new scene or award a second stamp.
+                stop("선택을 들었어요")
+                action?.invoke(command)
+            }
         }
     }
     private fun releaseFocus() { if (focusHeld) { focusHeld = false; audio.abandonAudioFocusRequest(focus) } }

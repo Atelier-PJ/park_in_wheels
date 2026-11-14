@@ -37,15 +37,19 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
     val complete=model.state.phase==Phase.COMPLETE
     val phrase=when(t.id){"magic"->"별빛을 밝혀라";"space"->"새로운 행성 안녕";"ocean"->"반짝 보물아 나와라";else->"깨어나라 작은 친구"}
     var caption by remember(t.id) { mutableStateOf(if(model.missionStep>=3)"“$phrase!” 하고 말해 주세요" else "${t.companion}${withAnd(t.companion)} 이야기 속으로 들어가요.") }
-    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->microphone=granted;playing=true}
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->
+        microphone=granted
+        if(model.canPlay) { if(model.state.phase==Phase.PAUSED)model.resume(); playing=model.state.phase==Phase.ACTIVE }}
     val stampScale by animateFloatAsState(if(complete)1f else .35f,animationSpec=spring(dampingRatio=.48f,stiffness=270f),label="passport stamp")
     fun begin() {
-        if(!model.canPlay)return
+        if(!model.canPlay || complete)return
+        usedVoice=false
+        voice.stop()
         if(model.state.phase==Phase.PAUSED)model.resume()
         if(voice.ready && voice.onDeviceAvailable && context.checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)permission.launch(Manifest.permission.RECORD_AUDIO)
         else {microphone=voice.ready && voice.onDeviceAvailable && context.checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED;playing=true}
     }
-    LaunchedEffect(Unit) { if(autoStart){onStartConsumed();begin()} }
+    LaunchedEffect(autoStart) { if(autoStart){onStartConsumed();begin()} }
     suspend fun narrate(text:String,minimum:Long=6500) {
         caption=text
         val start=SystemClock.elapsedRealtime()
@@ -60,7 +64,7 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
     }
     LaunchedEffect(playing,model.canPlay) {
         if(!playing || !model.canPlay)return@LaunchedEffect
-        if(model.state.phase!=Phase.ACTIVE)return@LaunchedEffect
+        if(model.state.phase!=Phase.ACTIVE){playing=false;return@LaunchedEffect}
         while(model.missionStep<3 && model.canPlay) {
             if(model.feedback!=null)model.nextMission()
             val mission=model.missions[model.missionStep]
@@ -71,7 +75,7 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
                 else->listOf("토리와 작은 공룡 알을 찾았어요. 아삭한 풀잎과 달콤한 열매를 챙겨 줄게요.","알이 편히 쉴 수 있도록 포근한 풀잎 보금자리를 만들어요.","알 안에서 톡톡 소리가 나요. 작은 친구를 깨울 인사를 준비해요.")[model.missionStep]
             }
             narrate(line)
-            if(!model.canPlay)return@LaunchedEffect
+            if(!model.canPlay || model.state.phase!=Phase.ACTIVE)return@LaunchedEffect
             model.answer(0)
             narrate(mission.response,if(t.id=="ocean" && model.episode%2==0 && model.missionStep==2)7200 else 2600)
             model.nextMission()
@@ -81,7 +85,7 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
         if(microphone && voice.ready) {
             usedVoice=true
             voice.tell("마지막 장면을 열어 볼까요? $phrase! 하고 말해 주세요.",phrase){
-                if(model.canFinish){voice.stop();model.completeRecognizedFinale();playing=false}
+                voice.stop();if(!model.completeRecognizedFinale())caption="주차 상태를 확인한 뒤 이야기를 이어 들어 주세요.";playing=false
             }
         } else {
             narrate("마지막 장면을 열어 볼까요? $phrase! 하고 말해 주세요.",1500)
@@ -92,8 +96,8 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
     LaunchedEffect(playing,model.canPlay,model.state.phase) {
         if(!model.canPlay || model.state.phase==Phase.PAUSED){playing=false;voice.stop()}
     }
-    LaunchedEffect(playing,usedVoice) {
-        while(playing && usedVoice){delay(300);if(!voice.enabled){playing=false;if(model.state.phase==Phase.ACTIVE)model.pause()}}
+    LaunchedEffect(playing,usedVoice,voice.enabled) {
+        if(playing && usedVoice && !voice.enabled) playing=false
     }
     DisposableEffect(Unit){onDispose{voice.stop()}}
     val cleanup=t.id=="ocean" && model.episode%2==0 && !complete && ((model.missionStep==1 && model.feedback==null)||(model.missionStep==2 && model.feedback!=null))
@@ -115,6 +119,10 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
                 } else {
                     Text(caption,fontSize=captionSize,lineHeight=captionLine,fontWeight=FontWeight.Bold,color=Color.White)
                     if(model.missionStep==3 && usedVoice) Text(voice.status,fontSize=13.sp,color=Color.White.copy(alpha=.85f))
+                    if(!playing && model.missionStep<3) {
+                        Action(if(model.state.phase==Phase.PAUSED) "이야기 이어 듣기" else "이야기 듣기", enabled=model.canPlay, onClick={begin()})
+                        Text(voice.status, fontSize=13.sp, color=Color.White.copy(alpha=.85f))
+                    }
                     if(model.missionStep>=3 && !playing) Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                         if(voice.ready && voice.onDeviceAvailable) Action("주문 다시 말하기",onClick={begin()})
                         OutlinedButton(colors=ButtonDefaults.outlinedButtonColors(contentColor=Color.White),onClick={if(model.canFinish){voice.stop();model.hatch()}},enabled=model.canFinish){Text("말하기 어려우면 손으로 열기")}
