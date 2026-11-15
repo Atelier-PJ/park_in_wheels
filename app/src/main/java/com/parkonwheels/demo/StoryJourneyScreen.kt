@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import com.parkonwheels.core.SafariEngine.Phase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,6 +33,8 @@ import kotlin.coroutines.resume
 internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport:()->Unit,onCancel:()->Unit,autoStart:Boolean=false,onStartConsumed:()->Unit={}) {
     val t=model.theme
     val context=LocalContext.current
+    var energyCollected by remember { mutableStateOf(emptySet<Int>()) }
+    val energyCount=energyCollected.size
     var playing by remember { mutableStateOf(false) }
     var usedVoice by remember { mutableStateOf(false) }
     var microphone by remember { mutableStateOf(false) }
@@ -64,27 +68,30 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
         while(model.missionStep<3 && model.canPlay) {
             if(model.feedback!=null)model.nextMission()
             val mission=model.missions[model.missionStep]
-            val line=when(t.id){
-                "magic"->listOf("루미와 잃어버린 별 조각을 찾아요. 반짝이는 별을 마법 주머니에 모아 볼까요?","별들이 모여 따뜻한 마법빛을 만들어요. 저기, 성문이 살짝 반짝이네요!","성문 앞에 도착했어요. 우리 목소리로 별빛을 깨울 준비를 해요.")[model.missionStep]
-                "space"->listOf("코코와 별빛 항로를 따라 출발해요. 창밖의 별들이 길을 알려 주네요!","상상 우주정거장에 도착했어요. 반짝이는 에너지를 채우고 다시 출발해요.","새로운 행성이 보여요. 코코와 함께 반가운 인사를 준비해요.")[model.missionStep]
-                "ocean"->if(model.episode%2==0) listOf("버블과 산호 정원으로 가요. 바다 친구들이 우리를 기다리고 있어요.","어라, 모래 위에 종이가 떨어져 있네요. 집게로 조심히 주워 수거함에 담아 줄게요.","바다가 다시 깨끗해졌어요. 친구들이 준비한 보물 조개를 만나러 가요.")[model.missionStep] else listOf("버블과 바다 친구들을 만나러 가요. 바다거북이 길을 안내해 주네요.","산호 사이로 반짝이는 길이 이어져요. 천천히 따라가 볼까요?","반짝이는 조개를 찾았어요. 다정한 목소리로 보물을 깨울 준비를 해요.")[model.missionStep]
-                else->listOf("토리와 작은 공룡 알을 찾았어요. 아삭한 풀잎과 달콤한 열매를 챙겨 줄게요.","알이 편히 쉴 수 있도록 포근한 풀잎 보금자리를 만들어요.","알 안에서 톡톡 소리가 나요. 작은 친구를 깨울 인사를 준비해요.")[model.missionStep]
+            val line=if(t.id=="space" && model.chargingEpisode) chargingStationLines[model.missionStep] else when(t.id){
+                "magic"->if(model.episode%2==0) listOf("루미에게 은빛 초대장이 왔어요! 달빛 정원에서 누가 우리를 기다릴까요?","정원에 도착했어요. 잠든 꽃 위로 달빛이 살며시 내려앉아요.","꽃잎 사이로 작은 빛이 모여요. 우리 목소리도 보태 볼까요?")[model.missionStep] else listOf("어라, 풀숲에 별 조각이 떨어졌어요! 루미와 마법 주머니에 담아 볼까요?","주머니 속 별들이 반짝반짝! 저 멀리 성문에도 작은 빛이 번져요.","꼭 닫힌 성문이에요. 루미가 속삭여요. 우리 목소리로 별빛을 깨워 볼까?")[model.missionStep]
+                "space"->if(model.episode%2==0) listOf("코코가 편지를 쓰고 있어요. 먼 행성의 친구에게 우리 인사를 보내요!","별빛 우주선이 편지를 싣고 떠나요. 작은 별 사이로 쌩, 날아가요!","띵동, 답장이 왔어요! 창밖에 편지를 보낸 친구의 행성이 보여요.")[model.missionStep] else listOf("코코, 출발! 창밖의 별들이 반짝이며 우주선 앞에 길을 만들어요.","우주정거장에 사뿐 도착! 코코가 반짝이는 에너지를 우주선에 채워요.","저기, 처음 보는 행성이에요! 우리를 봤나 봐요. 작은 불빛이 깜빡여요.")[model.missionStep]
+                "ocean"->if(model.episode%2==0) listOf("보글보글, 산호 정원에 도착했어요! 물고기들이 버블 주위를 빙글 돌아요.","어라, 모래 위에 종이가 있네요. 버블이 집게를 쏙 내밀어요. 살살 집어서 통에 쏙!","깨끗해진 정원에서 물고기들이 춤을 춰요. 저기, 조개 하나가 반짝여요!")[model.missionStep] else listOf("버블, 저기 봐! 바다거북이 지느러미를 흔들어요. 우리를 따라오라는 걸까요?","산호 사이로 반짝이는 길이 보여요. 버블과 살금살금 따라가 봐요.","커다란 조개를 찾았어요! 안에서 빛이 새어 나와요. 무엇이 숨어 있을까요?")[model.missionStep]
+                else->if(model.episode%2==0) listOf("토리와 소풍 가는 날이에요! 가방에 열매를 담고 숲으로 출발해요.","어, 동글동글 발자국이에요! 나무 뒤에서 누가 빼꼼 고개를 내밀어요.","새 친구에게 풀잎 이불을 선물했어요. 작은 알에서도 톡톡, 인사가 들려요.")[model.missionStep] else listOf("토리야, 저기 알이 있어! 작은 친구를 기다리며 토리와 간식을 나눠 먹어요.","작은 알이 데굴, 굴러가려 해요! 폭신한 풀잎을 깔아 포근하게 감싸 줘요.","톡, 토독! 알 안에서 소리가 들려요. 토리도 귀를 쫑긋 세워요.")[model.missionStep]
             }
             narrate(line)
+            if(t.id=="space" && model.chargingEpisode && model.missionStep==1) {
+                while(energyCollected.size<3 && model.canPlay) delay(100)
+            }
             if(!model.canPlay)return@LaunchedEffect
             model.answer(0)
             narrate(mission.response,if(t.id=="ocean" && model.episode%2==0 && model.missionStep==2)7200 else 2600)
             model.nextMission()
         }
-        if(!model.canFinish){caption="이야기는 여기 저장돼 있어요. 이동 기록이 준비되면 주차 후 다시 만나요.";playing=false;voice.stop();return@LaunchedEffect}
+        if(!model.canFinish){caption="이동 거리를 더 모으면 다음 이야기가 열려요. 주차한 뒤 다시 만나요.";playing=false;voice.stop();return@LaunchedEffect}
         caption="“$phrase!” 하고 말해 주세요"
         if(microphone && voice.ready) {
             usedVoice=true
-            voice.tell("마지막 장면을 열어 볼까요? $phrase! 하고 말해 주세요.",phrase){
+            voice.tell("함께 외쳐 볼까요? $phrase!",phrase){
                 if(model.canFinish){voice.stop();model.completeRecognizedFinale();playing=false}
             }
         } else {
-            narrate("마지막 장면을 열어 볼까요? $phrase! 하고 말해 주세요.",1500)
+            narrate("함께 외쳐 볼까요? $phrase!",1500)
             caption="“$phrase!” 하고 말해 주세요"
             playing=false;voice.stop()
         }
@@ -103,24 +110,34 @@ internal fun StoryJourneyScreen(model:SafariModel,voice:VoiceDirector,onPassport
         val captionLine=if(compact)36.sp else 43.sp
         if(cleanup) OceanCleanupScene(model.feedback!=null,model.reducedMotion,Modifier.fillMaxSize())
         else DinoSafariGif(Modifier.fillMaxSize(),t.id,if(complete)3 else model.missionStep.coerceIn(0,2),crop=false,animate=!model.reducedMotion)
+        if(model.chargingEpisode && model.missionStep==1 && model.feedback==null) {
+            Row(Modifier.align(Alignment.Center).padding(bottom=90.dp),horizontalArrangement=Arrangement.spacedBy(38.dp)) {
+                repeat(3) { index ->
+                    Button(onClick={energyCollected=energyCollected+index},enabled=index !in energyCollected,shape=androidx.compose.foundation.shape.CircleShape,contentPadding=PaddingValues(0.dp),modifier=Modifier.size(74.dp).semantics{contentDescription="에너지 조각 ${index+1}"},colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFFE29A),contentColor=Color(0xFF59452E),disabledContainerColor=Color(0xFFB8D8DF),disabledContentColor=Color(0xFF24394A))) {
+                        Text(if(index in energyCollected) "✓" else "✦",fontSize=38.sp)
+                    }
+                }
+            }
+        }
         Surface(color=if(complete)Color(0xFFFFFCF5).copy(alpha=.94f) else Color(0xFF172C32).copy(alpha=.65f),shape=RoundedCornerShape(22.dp),modifier=Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
             Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(9.dp)) {
                 if(complete) Text("여행 패스포트",color=t.accent,fontSize=15.sp)
                 if(complete) {
                     Surface(color=t.pale,shape=RoundedCornerShape(18.dp),modifier=Modifier.graphicsLayer{scaleX=if(model.reducedMotion)1f else stampScale;scaleY=if(model.reducedMotion)1f else stampScale}) {
-                        Text("콩!  ${t.reward} 스탬프",Modifier.padding(20.dp),fontSize=27.sp,color=t.accent)
+                        Text("콩!  ${model.reward} 스탬프",Modifier.padding(20.dp),fontSize=27.sp,color=t.accent)
                     }
-                    Text("${t.ending}  패스포트에 저장했어요.",fontSize=17.sp)
+                    Text("${if(model.chargingEpisode) "우주정거장 정비를 마쳤어요!" else t.ending}  오늘의 모험을 패스포트에 담았어요.",fontSize=17.sp)
                     TextButton(onClick=onPassport){Text("내 여행 패스포트 펼치기")}
                 } else {
                     Text(caption,fontSize=captionSize,lineHeight=captionLine,fontWeight=FontWeight.Bold,color=Color.White)
+                    if(model.chargingEpisode && model.missionStep==1 && model.feedback==null) Text("코코에게 보낸 에너지 $energyCount / 3",fontSize=17.sp,color=Color(0xFFFFE29A))
                     if(model.missionStep==3 && usedVoice) Text(voice.status,fontSize=13.sp,color=Color.White.copy(alpha=.85f))
                     if(model.missionStep>=3 && !playing) Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                         if(voice.ready && voice.onDeviceAvailable) Action("주문 다시 말하기",onClick={begin()})
-                        OutlinedButton(colors=ButtonDefaults.outlinedButtonColors(contentColor=Color.White),onClick={if(model.canFinish){voice.stop();model.hatch()}},enabled=model.canFinish){Text("말하기 어려우면 손으로 열기")}
+                        OutlinedButton(modifier=Modifier.semantics{contentDescription="마지막 장면 열기"},colors=ButtonDefaults.outlinedButtonColors(contentColor=Color.White),onClick={if(model.canFinish){voice.stop();model.hatch()}},enabled=model.canFinish){Text("말하기 어려우면 손으로 열기")}
                     }
-                    if(!voice.ready && !playing) Text("이 기기에는 한국어 음성이 없어 자막으로 이야기해요.",fontSize=12.sp,color=Color.White.copy(alpha=.8f))
-                    else if(!voice.onDeviceAvailable && model.missionStep==3 && !playing) Text(voice.recognitionStatus+" · 손으로 열 수도 있어요.",fontSize=12.sp,color=Color.White.copy(alpha=.8f))
+                    if(!voice.ready && !playing) Text("소리가 들리지 않으면 글을 보며 함께해요.",fontSize=12.sp,color=Color.White.copy(alpha=.8f))
+                    else if(!voice.onDeviceAvailable && model.missionStep==3 && !playing) Text("목소리 대신 아래 버튼으로도 열 수 있어요.",fontSize=12.sp,color=Color.White.copy(alpha=.8f))
                 }
             }
         }

@@ -1,0 +1,25 @@
+PASS: four notebooks, 24 detail views, title removed.
+dino: 스테고사우루스 opened/closed
+dino: 트리케라톱스 opened/closed
+dino: 브라키오사우루스 opened/closed
+dino: 티라노사우루스 opened/closed
+dino: 파라사우롤로푸스 opened/closed
+dino: 안킬로사우루스 opened/closed
+magic: 별빛 마법사 opened/closed
+magic: 달빛 수호자 opened/closed
+magic: 무지개 요정 opened/closed
+magic: 꽃잎 마법사 opened/closed
+magic: 햇살 친구 opened/closed
+magic: 성문의 열쇠 opened/closed
+space: 푸른 지구 opened/closed
+space: 고리 토성 opened/closed
+space: 붉은 화성 opened/closed
+space: 커다란 목성 opened/closed
+space: 반짝 금성 opened/closed
+space: 푸른 해왕성 opened/closed
+ocean: 흰동가리 opened/closed
+ocean: 노랑나비고기 opened/closed
+ocean: 블루탱 opened/closed
+ocean: 복어 opened/closed
+ocean: 해마 opened/closed
+ocean: 분홍 물고기 opened/closed

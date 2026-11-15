@@ -7,3 +7,6 @@ sources=()
 while IFS= read -r path; do sources+=("$path"); done < <(find core/src/main/java core/src/test/java -name '*.java' -print)
 javac -encoding UTF-8 -d "$out_dir" "${sources[@]}"
 java -cp "$out_dir" com.parkonwheels.core.SafariEngineTest
+java -cp "$out_dir" com.parkonwheels.core.TravelRewardPolicyTest
+
+java -cp "$out_dir" com.parkonwheels.core.ThemeRecommendationTest

@@ -26,6 +26,7 @@ android {
     flavorDimensions += "vehicle"
     productFlavors {
         create("demo") {
+            testInstrumentationRunner = providers.gradleProperty("demoTestRunner").orElse("com.parkonwheels.demo.AdventureVerification").get()
             dimension = "vehicle"
             manifestPlaceholders["appLabel"] = "Park on Wheels · DEMO"
         }
@@ -65,6 +66,7 @@ dependencies {
     implementation(project(":core"))
     "pleosImplementation"("ai.pleos.playground:Vehicle:2.3.2")
     "pleosImplementation"("ai.pleos.playground:SpeechToText:3.3.1")
+    "pleosImplementation"("ai.pleos.playground:NaviHelper:3.0.5")
     implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")

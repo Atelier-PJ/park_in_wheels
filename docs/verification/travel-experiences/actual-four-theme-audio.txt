@@ -1,0 +1,38 @@
+11-14 04:16:58.173 29672 29672 I ParkOnWheels: theme_sound departure=dino playing=true
+11-14 04:17:17.231 29672 29672 I ParkOnWheels: theme_sound ambience=dino playing=true ducked=true
+11-14 04:17:17.343 29672 29672 I ParkOnWheels: theme_sound ambience=dino playing=true ducked=true
+11-14 04:17:23.385 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:23.835 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:17:27.233 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:27.234 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:17:31.430 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:33.736 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:17:37.480 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:37.483 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:17:42.503 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:43.986 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:17:47.186 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:17:47.188 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:18:04.633 29672 29672 I ParkOnWheels: theme_sound departure=dino playing=true
+11-14 04:18:22.412 29672 29672 I ParkOnWheels: theme_sound ambience=dino playing=true ducked=true
+11-14 04:18:22.442 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:18:29.263 29672 29672 I ParkOnWheels: theme_sound departure=dino playing=true
+11-14 04:18:35.821 29672 29672 I ParkOnWheels: theme_sound ambience=dino playing=true ducked=true
+11-14 04:18:35.920 29672 29672 I ParkOnWheels: theme_sound ambience=dino playing=true ducked=true
+11-14 04:18:41.948 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:18:42.405 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:18:45.749 29672 29672 I ParkOnWheels: theme_sound departure=magic playing=true
+11-14 04:18:52.517 29672 29672 I ParkOnWheels: theme_sound ambience=magic playing=true ducked=true
+11-14 04:18:52.628 29672 29672 I ParkOnWheels: theme_sound ambience=magic playing=true ducked=true
+11-14 04:18:58.249 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:18:59.118 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:19:02.329 29672 29672 I ParkOnWheels: theme_sound departure=space playing=true
+11-14 04:19:09.114 29672 29672 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-14 04:19:09.252 29672 29672 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-14 04:19:14.665 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:19:15.742 29672 29672 I ParkOnWheels: theme_sound ducked=true
+11-14 04:19:19.189 29672 29672 I ParkOnWheels: theme_sound departure=ocean playing=true
+11-14 04:19:25.851 29672 29672 I ParkOnWheels: theme_sound ambience=ocean playing=true ducked=true
+11-14 04:19:25.989 29672 29672 I ParkOnWheels: theme_sound ambience=ocean playing=true ducked=true
+11-14 04:19:30.782 29672 29672 I ParkOnWheels: theme_sound ducked=false
+11-14 04:19:32.477 29672 29672 I ParkOnWheels: theme_sound ducked=true

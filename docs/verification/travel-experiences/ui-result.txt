@@ -1,0 +1,3 @@
+PASS production charging UI: three actual button taps → existing finale touch alternative → special badge
+PASS explicit parked visit claim, reward dialog and passport visit count
+

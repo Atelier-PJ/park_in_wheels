@@ -30,6 +30,8 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
     private var recordedPlayer: android.media.MediaPlayer? = null
     private var offlineTts = false
     private val recordings = runCatching { context.assets.open("narration_index.json").bufferedReader().use { org.json.JSONObject(it.readText()) } }.getOrNull()
+    private val sounds = ThemeSoundPlayer(context)
+    private var soundTheme: String? = null
     private var closed = false
     private var focusHeld = false
     private var recognizer: SpeechRecognizer? = null
@@ -73,10 +75,21 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
             override fun onError(id: String?) { main.post { if (id == epoch.toString()) stop("안내를 읽지 못했어요. 터치로 골라 주세요.") } }
             override fun onDone(id: String?) { main.post {
                 if (id == epoch.toString() && enabled && allowed()) {
-                    if (withMicrophone) listen(epoch) else { releaseFocus(); val done=narrated; narrated=null; done?.invoke() }
+                    if (withMicrophone) listen(epoch) else { sounds.duck(false); releaseFocus(); val done=narrated; narrated=null; done?.invoke() }
                 }
             } }
         })
+    }
+    fun configureThemeSound(theme: String?, enabled: Boolean) {
+        soundTheme = if(enabled) theme else null
+        if(soundTheme == null) sounds.stop()
+    }
+    fun departure(theme: String) {
+        if(!allowed() || closed || audio.mode != AudioManager.MODE_NORMAL) return
+        stop()
+        if(audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return
+        focusHeld = true
+        sounds.departure(theme) { releaseFocus() }
     }
     fun start(microphone: Boolean) {
         if (!allowed()) { status = "안전한 주차 상태에서만 음성을 사용할 수 있어요"; return }
@@ -107,8 +120,9 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
     private fun speak() {
         if (!enabled || !allowed()) { stop(); return }
         if (audio.mode != AudioManager.MODE_NORMAL) { stop("통화가 끝난 뒤 다시 만나요."); return }
-        if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { stop("다른 차량 안내가 끝난 뒤 음성을 시작해 주세요."); return }
+        if (!focusHeld && audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { stop("다른 차량 안내가 끝난 뒤 음성을 시작해 주세요."); return }
         focusHeld = true
+        soundTheme?.let(sounds::ambience)
         status = "이야기를 들려주고 있어요"
         if(!offlineTts) {
             val path=recordings?.optString(narration).orEmpty()
@@ -121,7 +135,7 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
                     context.assets.openFd(path).use { setDataSource(it.fileDescriptor,it.startOffset,it.length) }
                     setOnCompletionListener {
                         if(token==epoch && enabled && allowed()) {
-                            if(withMicrophone)listen(token) else {releaseFocus();val done=narrated;narrated=null;done?.invoke()}
+                            if(withMicrophone)listen(token) else {sounds.duck(false);releaseFocus();val done=narrated;narrated=null;done?.invoke()}
                         }
                     }
                     setOnErrorListener { _,_,_->if(token==epoch)stop("안내를 재생하지 못했어요. 다시 시작해 주세요.");true }
@@ -133,6 +147,7 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
         if (tts.speak(narration, TextToSpeech.QUEUE_FLUSH, null, epoch.toString()) != TextToSpeech.SUCCESS) stop("안내를 읽지 못했어요. 터치로 골라 주세요.")
     }
     private fun listen(token: Long) {
+        sounds.stop()
         if (!allowed() || !enabled || token != epoch) { stop(); return }
         if(pleosInput!=null) {
             if(!pleosInput.ready){stop(pleosInput.status);return}
@@ -190,8 +205,10 @@ class VoiceDirector(private val context: Context, private val allowed: () -> Boo
             else -> { status = "선택을 들었어요"; callback?.invoke(command) }
         }
     }
-    private fun releaseFocus() { if (focusHeld) { focusHeld = false; audio.abandonAudioFocusRequest(focus) } }
+    private fun releaseFocus() { if(sounds.playing && enabled && !withMicrophone) return; if (focusHeld) { focusHeld = false; audio.abandonAudioFocusRequest(focus) } }
     fun stop(reason: String = "음성이 쉬고 있어요") {
+        if(enabled || sounds.playing) android.util.Log.i("ParkOnWheels", "audio_stopped: $reason")
+        sounds.stop()
         enabled = false; epoch++; guard?.let(main::removeCallbacks); guard = null
         recognizer?.cancel(); pleosInput?.cancel(); recordedPlayer?.release();recordedPlayer=null; tts.stop(); callback = null; narrated=null; expectedPhrase=null; releaseFocus(); status = reason
     }

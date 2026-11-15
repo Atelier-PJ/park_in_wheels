@@ -9,7 +9,7 @@ data class AdventureTheme(
     val accent: Color, val pale: Color, val missions: List<ParkMission>
 )
 val adventureThemes = listOf(
-    AdventureTheme("dino", "다이노 사파리", "DINO SAFARI", "작은 알에 담긴, 커다란 모험", "공룡 탐험대원", "토리", "아기 공룡", "토리가 태어났어요! 다음 여행에는 함께 숲을 탐험해요.",
+    AdventureTheme("dino", "다이노 사파리", "DINO SAFARI", "작은 알에 담긴, 커다란 모험", "공룡 탐험대원", "토리", "아기 공룡", "작은 친구가 알을 깨고 나왔어요! 토리도 반가워서 폴짝 뛰어요.",
         Color(0xFF27775A), Color(0xFFE4F1D9), listOf(
             ParkMission("냠냠, 소풍 시간", "토리가 좋아할 간식을 골라 줄래?", listOf("아삭아삭 풀잎", "달콤한 열매"), "냠냠! 토리가 꼬리를 살랑살랑 흔들어요."),
             ParkMission("알의 보금자리", "작은 알이 쉴 곳을 찾아보자!", listOf("포근한 풀밭", "커다란 나무 아래"), "푹신한 보금자리 완성! 알이 살짝 움직였어요."),
@@ -18,11 +18,11 @@ val adventureThemes = listOf(
         Color(0xFF7652AE), Color(0xFFF0E7FA), listOf(
             ParkMission("잃어버린 별 조각", "루미와 마법 주머니를 채워 보자!", listOf("노란 별 담기", "분홍 별 담기"), "반짝반짝! 첫 번째 별 조각을 찾았어요."),
             ParkMission("나만의 마법빛", "성문을 비출 빛은 어떤 색일까?", listOf("따뜻한 햇살빛", "은은한 달빛"), "별들이 모여 나만의 마법빛을 만들었어요."),
-            ParkMission("성문을 여는 주문", "손으로 주문을 골라 마법을 완성해 봐!", listOf("별빛을 밝혀라!", "반짝, 문을 열어라!"), "주문을 잘 전했어요. 이제 성문을 열어 볼까요?"))),
+            ParkMission("성문을 여는 주문", "우리 목소리로 별빛을 깨워 볼까?", listOf("별빛을 밝혀라!", "반짝, 문을 열어라!"), "쉿, 성문 너머에서 별들이 우리를 기다려요."))),
     AdventureTheme("space", "스페이스 포트", "SPACE PORT", "우리가 처음 만나는 작은 행성", "우주 탐사대원", "코코", "무지개 행성", "새로운 행성 발견! 코코와 다음 우주 지도를 펼쳐 봐요.",
         Color(0xFF3866BD), Color(0xFFE3EDFF), listOf(
             ParkMission("별빛 항로", "우주선이 지나갈 길을 골라 줘!", listOf("반짝이는 별 길", "동그란 달 길"), "별빛 길을 찾았어요. 코코가 손을 흔들어요."),
-            ParkMission("상상 우주정거장", "주차 중 상상 도킹! 에너지 코어를 골라 봐.", listOf("햇살 코어", "무지개 코어"), "상상 우주선 충전 완료! 실제 차량 충전과는 별개예요."),
+            ParkMission("별빛 우주정거장", "우주정거장에 도착! 반짝이는 에너지를 채워 볼까?", listOf("햇살 코어", "무지개 코어"), "우주선에 에너지가 가득 찼어요!"),
             ParkMission("행성에 보내는 인사", "처음 만나는 행성에 무엇을 남길까?", listOf("우리의 손인사", "작은 별 깃발"), "우주 탐사 신호를 보냈어요. 행성이 반짝여요."))),
     AdventureTheme("ocean", "오션 서브마린", "OCEAN SUBMARINE", "파란 바다 아래, 반짝이는 비밀", "바다 탐험대원", "버블", "보물 진주", "조개가 활짝! 보물 진주를 찾았어요. 버블과 또 만나요.",
         Color(0xFF167C91), Color(0xFFDCF3F0), listOf(
@@ -48,7 +48,7 @@ fun AdventureTheme.chapterMissions(episode: Int): List<ParkMission> = if (episod
         ParkMission("정원의 작은 빛", "친구들과 나눌 빛을 골라요.", listOf("둥근 달빛", "작은 반딧불빛"), "정원 가득 부드러운 빛이 번져요. 마법사님, 고마워요!"))
     "space" -> listOf(
         ParkMission("우주 편지", "코코와 별 친구에게 편지를 보내요!", listOf("반가운 인사 쓰기", "우리 행성 그리기"), "별 친구에게 보낼 편지가 완성됐어요."),
-        ParkMission("혜성 우체부", "편지를 전할 상상 우주선을 골라 줘!", listOf("별빛 우주선", "달빛 우주선"), "우주 우체부가 안전하게 편지를 싣고 출발해요."),
+        ParkMission("혜성 우체부", "우리 편지를 어느 우주선에 실어 보낼까?", listOf("별빛 우주선", "달빛 우주선"), "우주 우체부가 안전하게 편지를 싣고 출발해요."),
         ParkMission("도착한 답장", "먼 행성에서 답장이 왔어요!", listOf("함께 열어 보기", "코코에게 먼저 보여 주기"), "우리도 반가워! 새로운 행성 친구가 생겼어요."))
     else -> listOf(
         ParkMission("버블의 초대", "오늘은 산호 정원을 구경하는 날!", listOf("바다거북과 가기", "물고기들과 가기"), "친구들과 함께 정원으로 출발해요."),

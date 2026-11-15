@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "dino",
+    "departure": "탐험차 타고 출발",
+    "story": true,
+    "video": "dino.mp4"
+  },
+  {
+    "theme": "magic",
+    "departure": "마법차 타고 출발",
+    "story": true,
+    "video": "magic.mp4"
+  },
+  {
+    "theme": "space",
+    "departure": "우주선 타고 출발",
+    "story": true,
+    "video": "space.mp4"
+  },
+  {
+    "theme": "ocean",
+    "departure": "잠수함 타고 출발",
+    "story": true,
+    "video": "ocean.mp4"
+  }
+]

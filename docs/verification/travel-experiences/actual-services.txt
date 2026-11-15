@@ -1,0 +1,6 @@
+Actual read-only service probe on Pleos API 34 AVD, emulator-5556, user current (10).
+ACTUAL EV_CHARGE_STATE callback: false
+ACTUAL SERVICE: 내비 연결 완료 · 목적지 도착 신호를 기다려요
+Probe completed; connection/read results are not proof of a charging transition or navigation arrival.
+
+The Virtual Console lists Charge Switch but does not expose EV_CHARGE_STATE transition or navigation arrival injection. No charging-state or arrival result was fabricated. The separate UI/model tests explicitly use injected travel signals and are labeled in the screenshots.

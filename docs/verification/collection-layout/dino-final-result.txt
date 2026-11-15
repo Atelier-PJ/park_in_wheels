@@ -1,0 +1,7 @@
+PASS: final dinosaur bounds, six detail views, title removed.
+dino: 스테고사우루스 opened/closed
+dino: 트리케라톱스 opened/closed
+dino: 브라키오사우루스 opened/closed
+dino: 티라노사우루스 opened/closed
+dino: 파라사우롤로푸스 opened/closed
+dino: 안킬로사우루스 opened/closed

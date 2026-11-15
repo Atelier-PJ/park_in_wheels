@@ -79,15 +79,20 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
     var storyRequested by remember { mutableStateOf(false) }
     var parentGate by remember { mutableStateOf(false) }
     var answer by remember { mutableStateOf("") }
+    var visitEarned by remember { mutableStateOf(false) }
     var cancelDialog by remember { mutableStateOf(false) }
     LaunchedEffect(model.state.phase) {
         if (model.state.phase == Phase.ACTIVE || model.state.phase == Phase.COMPLETE) page = "journey"
         else if(model.state.phase == Phase.PAUSED && page == "journey") page = "ticket"
     }
-    LaunchedEffect(page, model.canPlay) { if(page != "journey" || !model.canPlay) voice.stop() }
+    LaunchedEffect(page, model.canPlay, model.soundsEnabled) {
+        if(page != "journey" || !model.canPlay) voice.stop()
+        if(page == "ticket" && model.canPlay && model.soundsEnabled) voice.departure(model.themeId)
+        voice.configureThemeSound(if(page == "journey")model.themeId else null, model.soundsEnabled)
+    }
     Surface(Modifier.fillMaxSize(), color = Paper) {
-        Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = if(page=="ticket" || page=="journey") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 12.dp else 26.dp, vertical = if(page=="ticket" || page=="journey") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 10.dp else 18.dp)) {
-            if(page != "home" && page != "entrance" && page != "journey" && page != "ticket" && page != "passport") {
+        Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = if(page=="ticket" || page=="journey" || page=="destination") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 12.dp else 26.dp, vertical = if(page=="ticket" || page=="journey" || page=="destination") 0.dp else if(page=="home" || page=="entrance" || page=="journey" || page=="ticket" || page=="passport") 10.dp else 18.dp)) {
+            if(page != "home" && page != "entrance" && page != "journey" && page != "ticket" && page != "destination" && page != "passport") {
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.widthIn(min=230.dp)) {
                     Text("WONDER WHEELS", fontSize = 10.sp, letterSpacing = 3.sp, color = Green, fontWeight = FontWeight.Bold)
@@ -106,12 +111,21 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
             }
             Spacer(Modifier.height(18.dp))
             }
+            if(model.arrivalAvailable && page in listOf("entrance","home","passport")) {
+                Surface(color=TicketPaper,shape=TicketShape,modifier=Modifier.fillMaxWidth().padding(bottom=8.dp)) {
+                    Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+                        Text("여행지에 도착했어요!",modifier=Modifier.weight(1f),fontSize=20.sp,color=Navy)
+                        TextButton(onClick={val before=model.visits.size;model.claimVisit();visitEarned=model.visits.size>before}) {Text("방문 스탬프 받기",fontSize=18.sp,color=Green)}
+                    }
+                }
+            }
             Box(Modifier.weight(1f)) {
                 if (!model.canPlay && page != "parents") SafetyScreen(model) { cancelDialog = true }
                 else when(page) {
                     "entrance" -> ParkEntrance(model.inJourney,model.reducedMotion) { page = if(model.inJourney) "ticket" else "home" }
                     "home" -> WorldSelection(model, onChoose = { model.chooseTheme(it); page = "ticket" }, onContinue = { page = "ticket" })
-                    "ticket" -> TicketScreen(model, onBack = { page = "home" }, onStart = { storyRequested=true; if(model.inJourney){model.resume();page="journey"} else model.start() })
+                    "ticket" -> TicketScreen(model, onBack = { page = "home" }, onStart = { if(model.inJourney){storyRequested=true;model.resume();page="journey"} else page="destination" })
+                    "destination" -> DestinationSelectionScreen(model,onBack={page="home"},onStart={storyRequested=true;model.start()})
                     "journey" -> StoryJourneyScreen(model, voice, autoStart=storyRequested,onStartConsumed={storyRequested=false},onPassport = { page = "passport" }, onCancel = { cancelDialog = true })
                     "passport" -> PassportScreen(model, voice, onExplore = { page = if(model.inJourney) "ticket" else "home" })
                     "parents" -> ParentScreen(model)
@@ -124,6 +138,7 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
             }
         }
     }
+    if(visitEarned) AlertDialog(onDismissRequest={visitEarned=false},title={Text("콩! 방문 스탬프")},text={Text("이번 여행의 도착 스탬프를 패스포트에 담았어요.")},confirmButton={TextButton(onClick={visitEarned=false;page="passport"}){Text("패스포트 보기")}})
     if(parentGate) AlertDialog(onDismissRequest={parentGate=false}, title={Text("보호자 전용 공간")},
         text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text("설정은 보호자와 함께해요.\n8 + 6의 답을 입력해 주세요.");OutlinedTextField(value=answer,onValueChange={answer=it.take(2)},singleLine=true,label={Text("정답")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))}},
         confirmButton={TextButton(onClick={if(answer=="14"){parentGate=false;page="parents"}},enabled=answer=="14"){Text("보호자 확인")}}, dismissButton={TextButton(onClick={parentGate=false}){Text("돌아가기")}})
@@ -166,25 +181,36 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
 }
 
 @Composable private fun WorldSelection(model:SafariModel,onChoose:(String)->Unit,onContinue:()->Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-    val columns = if (maxWidth < 620.dp) 1 else 2
     Column(Modifier.fillMaxSize(), verticalArrangement=Arrangement.spacedBy(12.dp)) {
         if(model.inJourney) {
             Surface(color=model.theme.pale,shape=Shape,modifier=Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(horizontal=18.dp, vertical=12.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("이어서 갈 모험이 있어요",fontWeight=FontWeight.Bold,fontSize=16.sp);Text("${model.theme.name} · ${model.role}",color=Muted,fontSize=12.sp)};Action("계속하기  →",model.theme.accent,modifier=Modifier.heightIn(min=48.dp),onClick=onContinue)}
             }
         }
-        for (row in adventureThemes.chunked(columns)) {
-            Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                row.forEach { theme ->
-                    Surface(color=theme.pale,shape=Shape,modifier=Modifier.weight(1f).fillMaxHeight().clickable(enabled=!model.inJourney,role=Role.Button,onClick={onChoose(theme.id)}).semantics { contentDescription="${theme.name}, ${theme.subtitle}, 테마 선택" }) {
-                        Box(Modifier.fillMaxSize()) {
-                            ThemeArtwork(theme.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-                            Box(Modifier.padding(12.dp)) { Badge("${theme.companion}와 함께",SoftWhite.copy(alpha=.94f),theme.accent) }
-                            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent,Color(0xFF172C32).copy(alpha=.7f))))) {
-                                Row(Modifier.padding(horizontal=15.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically) {
-                                    Text(theme.name,Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.ExtraBold,color=Color.White,style=LocalTextStyle.current.copy(shadow=androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha=.4f),androidx.compose.ui.geometry.Offset(0f,2f),5f)))
-                                    Text("↗",Modifier.padding(horizontal=10.dp,vertical=6.dp),fontSize=26.sp,color=Color.White)
+        ThemeCardGrid(Modifier.weight(1f), enabled=!model.inJourney, onChoose=onChoose)
+
+    }
+}
+
+/** Home and collection covers share geometry so the four worlds stay in the same places. */
+@Composable private fun ThemeCardGrid(modifier:Modifier=Modifier, collection:Boolean=false, enabled:Boolean=true, recommendedId:String?=null, onChoose:(String)->Unit) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val columns=if(maxWidth<620.dp) 1 else 2
+        Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            adventureThemes.chunked(columns).forEach { row ->
+                Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    row.forEach { theme ->
+                        Surface(color=theme.pale,shape=Shape,modifier=Modifier.weight(1f).fillMaxHeight()
+                            .clickable(enabled=enabled,role=Role.Button){onChoose(theme.id)}
+                            .semantics{contentDescription=if(collection) "${collectionTitle(theme.id)} 펼치기" else "${theme.name}, ${theme.subtitle}, 테마 선택"+(if(recommendedId==theme.id) ", 오늘의 여행 추천" else "")}) {
+                            Box(Modifier.fillMaxSize()) {
+                                ThemeArtwork(theme.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+                                Box(Modifier.padding(12.dp)) { Badge(if(collection)theme.name else if(recommendedId==theme.id)"오늘의 여행 추천" else "${theme.companion}와 함께",SoftWhite.copy(alpha=.94f),theme.accent) }
+                                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent,Color(0xFF172C32).copy(alpha=.7f))))) {
+                                    Row(Modifier.padding(horizontal=15.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically) {
+                                        Text(if(collection)collectionTitle(theme.id) else theme.name,Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.ExtraBold,color=Color.White,style=LocalTextStyle.current.copy(shadow=androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha=.4f),androidx.compose.ui.geometry.Offset(0f,2f),5f)))
+                                        Text("↗",Modifier.padding(horizontal=10.dp,vertical=6.dp),fontSize=26.sp,color=Color.White)
+                                    }
                                 }
                             }
                         }
@@ -194,42 +220,9 @@ internal fun ParkApp(model: SafariModel, voice: VoiceDirector) {
         }
     }
 }
-}
 
 @Composable internal fun TicketScreen(model:SafariModel,onBack:()->Unit,onStart:()->Unit) {
-    androidx.activity.compose.BackHandler(onBack=onBack)
-    val t=model.theme
-    val invitation=when(t.id){
-        "dino"->"쉿, 알 속에서\n누가 부르는 것 같아!"
-        "magic"->"반짝! 우리 목소리가\n마법이 되는 시간."
-        "space"->"다음 정거장은,\n아무도 못 본 행성!"
-        else->"보글보글,\n바다가 부르고 있어!"
-    }
-    val promise=when(t.id){
-        "dino"->"토리와 작은 친구를 만나러 가요."
-        "magic"->"루미와 별빛 성문을 열어 봐요."
-        "space"->"코코와 별빛 항로로 출발해요."
-        else->"버블과 반짝이는 비밀을 찾아요."
-    }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val compact=maxWidth<600.dp
-        ThemeArtwork(t.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-        Box(Modifier.align(Alignment.TopStart).fillMaxWidth(.73f).fillMaxHeight().background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Paper.copy(alpha=.82f),Paper.copy(alpha=.3f),Color.Transparent))))
-        Column(Modifier.align(Alignment.TopStart).padding(start=28.dp,top=24.dp,end=20.dp).fillMaxWidth(if(compact).86f else .64f),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Text("${t.companion}의 초대장",Modifier.clip(RoundedCornerShape(50)).background(Paper.copy(alpha=.9f)).padding(horizontal=13.dp,vertical=7.dp),fontSize=13.sp,color=t.accent)
-            Text(invitation,fontSize=if(compact)29.sp else 36.sp,lineHeight=if(compact)38.sp else 46.sp,color=Navy,style=LocalTextStyle.current.copy(shadow=androidx.compose.ui.graphics.Shadow(Paper.copy(alpha=.8f),androidx.compose.ui.geometry.Offset(0f,1f),6f)))
-            Text(promise,fontSize=17.sp,lineHeight=24.sp,color=Navy)
-        }
-        OutlinedButton(
-            onClick=onBack,
-            modifier=Modifier.align(Alignment.TopEnd).padding(top=16.dp,end=18.dp).heightIn(min=48.dp),
-            shape=RoundedCornerShape(50),
-            border=androidx.compose.foundation.BorderStroke(1.dp,Navy.copy(alpha=.18f)),
-            colors=ButtonDefaults.outlinedButtonColors(containerColor=Paper.copy(alpha=.94f),contentColor=Navy),
-            contentPadding=PaddingValues(horizontal=18.dp,vertical=10.dp)
-        ) { Text("← 홈으로",fontSize=17.sp) }
-        Action("이야기 듣기",enabled=model.hasDistance,modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=26.dp).widthIn(min=220.dp),onClick=onStart)
-    }
+    VehicleBoardingScreen(model, onBack, onStart)
 }
 
 @Composable private fun ModeChoice(title:String,description:String,selected:Boolean,accent:Color,click:()->Unit){
@@ -355,29 +348,19 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
     androidx.activity.compose.BackHandler(enabled=detail!=null || selected!=null) {
         voice.stop();if(detail!=null)detail=null else selected=null
     }
-    Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(if(theme==null)0.dp else 10.dp)) {
+        if(theme!=null) Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(if(theme==null)"나의 보물 수집함" else collectionTitle(theme.id),fontSize=27.sp,color=Navy)
-                Text(if(theme==null)"어떤 친구들을 만났는지 펼쳐 볼까?" else "${theme.companion}와 함께 모으는 작은 보물",fontSize=14.sp,color=Muted)
+                Text(collectionTitle(theme.id),fontSize=27.sp,color=Navy)
             }
             TextButton(onClick={if(theme==null)onExplore() else selected=null}) { Text(if(theme==null)"← 테마로" else "← 수집함",color=Navy) }
         }
         if(theme==null) {
-            adventureThemes.chunked(2).forEach { row ->
-                Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    row.forEach { t ->
-                        Box(Modifier.weight(1f).fillMaxHeight().clip(Shape).clickable(role=Role.Button){selected=t.id}.semantics{contentDescription="${collectionTitle(t.id)} 펼치기"}) {
-                            ThemeArtwork(t.id,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-                            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent,Color(0xDD18333B)))))
-                            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                                Text(t.name,fontSize=12.sp,color=Color.White.copy(alpha=.9f))
-                                Text(collectionTitle(t.id),fontSize=25.sp,color=Color.White)
-                            }
-                            Text("↗",Modifier.align(Alignment.BottomEnd).padding(18.dp),fontSize=26.sp,color=Color.White)
-                        }
-                    }
-                }
+            ThemeCardGrid(Modifier.weight(1f),collection=true,onChoose={selected=it})
+            Row(Modifier.fillMaxWidth().heightIn(min=48.dp),verticalAlignment=Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                if(model.visits.isNotEmpty()) Text("방문 스탬프 ${model.visits.size}개",fontSize=12.sp,color=Green)
+                TextButton(onClick=onExplore){Text("← 테마로",fontSize=12.sp,color=Navy)}
             }
         } else {
             val entries=collectionEntries.getValue(theme.id)
@@ -392,24 +375,29 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
                     }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal=12.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                        Text("어떤 보물 이야기를 들어 볼까?",color=Navy,fontSize=16.sp)
-                        Text("미리보기",color=Muted,fontSize=12.sp)
-                    }
-                    names.chunked(3).forEachIndexed { r,row ->
-                        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                            row.forEachIndexed { c,name ->
-                                Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).clickable(role=Role.Button){
-                                    voice.stop();detail=r*3+c
-                                }.semantics{contentDescription="$name, 큰 그림과 설명 듣기"}.padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                                    CollectionCreature(theme.id,r*3+c,Modifier.weight(1f).fillMaxWidth())
-                                    Text(name,fontSize=17.sp,color=Navy,maxLines=1)
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val columns=if(maxWidth>=600.dp)3 else 2
+                        val rows=names.chunked(columns)
+                        val scroll=maxHeight<150.dp*rows.size
+                        Column(if(scroll) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                            rows.forEachIndexed { r,row ->
+                                Row(if(scroll)Modifier.fillMaxWidth().height(180.dp) else Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                    row.forEachIndexed { c,name ->
+                                        val entryIndex=r*columns+c
+                                        Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).clickable(role=Role.Button){
+                                            voice.stop();detail=entryIndex
+                                        }.semantics{contentDescription="$name, 큰 그림과 설명 듣기"}.padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                                            CollectionCreature(theme.id,entryIndex,Modifier.weight(1f).fillMaxWidth())
+                                            Box(Modifier.fillMaxWidth().height(44.dp),contentAlignment=Alignment.Center) {
+                                                Text(name,fontSize=17.sp,lineHeight=21.sp,color=Navy,maxLines=2,textAlign=TextAlign.Center)
+                                            }
+                                        }
+                                    }
                                 }
+                                if(r<rows.lastIndex) HorizontalDivider(color=Color(0xFFE9DFCE),thickness=1.dp)
                             }
                         }
-                        if(r==0) HorizontalDivider(color=Color(0xFFE9DFCE),thickness=1.dp)
                     }
-                    Text("그림을 누르면 크게 보고 이야기를 들을 수 있어요.",fontSize=12.sp,color=Muted)
                 }
             }
         }
@@ -434,16 +422,16 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
         Surface(Modifier.fillMaxWidth(.94f).fillMaxHeight(.94f),shape=Shape,color=Paper) {
             Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    Text(entry.name,Modifier.weight(1f),fontSize=27.sp,color=Navy)
+                    Text(entry.name,Modifier.weight(1f),fontSize=27.sp,lineHeight=33.sp,maxLines=2,color=Navy)
                     TextButton(onClick=onClose){Text("닫기 ×",fontSize=17.sp,color=Navy)}
                 }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    if(maxWidth>=560.dp) Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)) {
+                    if(maxWidth>=560.dp && maxWidth>maxHeight) Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)) {
                         CollectionCreature(theme,index,Modifier.weight(1f).fillMaxHeight())
-                        Text(entry.description,Modifier.weight(1f),fontSize=25.sp,lineHeight=37.sp,color=Navy)
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.Center) { Text(entry.description,fontSize=25.sp,lineHeight=37.sp,color=Navy) }
                     } else Column(Modifier.fillMaxSize(),horizontalAlignment=Alignment.CenterHorizontally) {
                         CollectionCreature(theme,index,Modifier.weight(1f).fillMaxWidth())
-                        Text(entry.description,fontSize=22.sp,lineHeight=32.sp,color=Navy)
+                        Text(entry.description,Modifier.heightIn(max=150.dp).verticalScroll(rememberScrollState()),fontSize=22.sp,lineHeight=32.sp,color=Navy)
                     }
                 }
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
@@ -461,11 +449,25 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
         context.assets.open("collections/${if(theme=="magic")"magic-v2" else theme}.png").use { android.graphics.BitmapFactory.decodeStream(it) }
     }
     val tile=remember(sheet,index) {
-        android.graphics.Bitmap.createBitmap(sheet,(index%3)*sheet.width/3,(index/3)*sheet.height/2,sheet.width/3,if(theme=="dino" && index<3)sheet.height/2-24 else sheet.height/2)
+        // The dinosaur sheet is not an exact grid: lower-row heads and tails cross its midlines.
+        // Boundaries follow the clear gaps between creatures, preserving each complete silhouette.
+        val bounds=if(theme=="dino") listOf(
+            intArrayOf(0,0,512,480),intArrayOf(512,0,1000,480),intArrayOf(1000,0,1536,480),
+            intArrayOf(0,480,488,1024),intArrayOf(488,480,1000,1024),intArrayOf(1000,480,1536,1024)
+        )[index] else null
+        if(bounds!=null) {
+            val left=bounds[0]*sheet.width/1536; val top=bounds[1]*sheet.height/1024
+            val right=bounds[2]*sheet.width/1536; val bottom=bounds[3]*sheet.height/1024
+            android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
+        } else {
+            val left=(index%3)*sheet.width/3; val top=(index/3)*sheet.height/2
+            val right=((index%3)+1)*sheet.width/3; val bottom=((index/3)+1)*sheet.height/2
+            android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
+        }
     }
     androidx.compose.foundation.Image(
         bitmap=tile.asImageBitmap(),contentDescription=null,
-        modifier=modifier,contentScale=ContentScale.Fit)
+        modifier=modifier.padding(6.dp),contentScale=ContentScale.Fit)
 }
 
 @Composable private fun SafetyScreen(model:SafariModel, onReset:()->Unit) {
@@ -485,6 +487,17 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
 }
 
 @Composable private fun ParentScreen(model:SafariModel) {
+    val context=LocalContext.current
+    val energyPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { model.reconnectTravel() }
+    var tripName by remember{mutableStateOf("")}
+    DisposableEffect(context) {
+        val owner=context as? androidx.lifecycle.LifecycleOwner
+        val observer=androidx.lifecycle.LifecycleEventObserver { _,event ->
+            if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP)tripName=""
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose { owner?.lifecycle?.removeObserver(observer) }
+    }
     var showDiagnostics by remember{mutableStateOf(false)}
     var erase by remember{mutableStateOf(false)}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(17.dp)) {
@@ -492,12 +505,28 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
         Text("안심하고 함께하는 탐험",fontSize=29.sp,fontWeight=FontWeight.ExtraBold)
         ParentNote("콘텐츠 준비 완료","네 가지 테마의 그림·미션·엔딩이 앱 안에 있어요. 별도 다운로드나 로그인 없이 사용할 수 있습니다.")
         ParentNote("주차 중에만 만나요","Pleos UX 제한, 기어 P, 최신 거리값을 함께 확인합니다. 신호 대기나 속도 0을 주차로 간주하지 않습니다. 상태가 불명확하면 차단하고 자동으로 재개하지 않습니다.")
-        ParentNote("현재 지원 범위","주차 중 한국어 오프라인 안내와 기기 내 음성 선택을 지원합니다. 음성 엔진이 없는 기기는 터치로 진행합니다. 내비 도착·실제 충전은 아직 미연동이며 이동 기록 탐험은 별도의 5km 기준입니다.")
+        ParentNote("현재 지원 범위","주차 중 한국어 오프라인 안내와 기기 내 음성 선택을 지원합니다. 음성 엔진이 없는 기기는 터치로 진행합니다. 보호자가 선택하면 실제 충전 상태에 따른 우주정거장 이야기와 목적지 도착 후 방문 스탬프를 연결합니다. 지원하지 않는 차량에서는 일반 이야기로 진행합니다.")
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("충전소 특별 모험");Text("충전 상태를 읽어 우주정거장 이야기를 열어요",fontSize=12.sp,color=Muted)};Switch(checked=model.chargingEnabled,onCheckedChange={value->model.changeCharging(value);if(value && !model.isSimulation && context.checkSelfPermission("android.car.permission.CAR_ENERGY")!=PackageManager.PERMISSION_GRANTED)energyPermission.launch("android.car.permission.CAR_ENERGY")},enabled=model.canPlay)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("여행지 방문 스탬프");Text("내비 도착 신호를 받은 뒤 주차하면 받을 수 있어요",fontSize=12.sp,color=Muted)};Switch(checked=model.visitsEnabled,onCheckedChange=model::changeVisits,enabled=model.canPlay)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)){Text("여행지에 맞는 테마 추천");Text("내비 목적지로 추천하고, 원하는 테마는 자유롭게 골라요",fontSize=12.sp,color=Muted)}
+            Switch(checked=model.recommendationsEnabled,onCheckedChange=model::changeRecommendations,enabled=model.canPlay)
+        }
+        if(model.recommendationsEnabled) {
+            OutlinedTextField(value=tripName,onValueChange={tripName=it.take(160)},label={Text("여행지 직접 입력")},placeholder={Text("예: 해운대해수욕장, 국립과천과학관")},singleLine=true,modifier=Modifier.fillMaxWidth(),enabled=model.canPlay)
+            Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick={model.setTripDestination(tripName);tripName=""},enabled=model.canPlay && tripName.isNotBlank()){Text("여행지 적용")}
+                TextButton(onClick={tripName="";model.setTripDestination("")},enabled=model.canPlay){Text("내비 목적지 사용")}
+            }
+            ParentNote("추천 기준", "${model.recommendationSource} · ${model.recommendedTheme?.let{id->adventureThemes.first{it.id==id}.name} ?: "분류 가능한 여행지를 기다려요"}\n목적지 이름을 기기 안에서만 분류합니다. 주소나 좌표로 주변 환경을 추측하지 않으며, 모호하면 추천하지 않습니다. 이름은 저장·외부 전송하지 않고 앱을 벗어나면 지웁니다.")
+        }
+        ParentNote("여행 정보 사용", "여행 연동은 모두 선택 사항입니다. 충전은 상태만 읽으며 충전을 조작하지 않습니다. 내비의 목적지 이름과 주소는 도착 알림을 중복 처리하지 않기 위해 기기 안에서 잠시 처리하고 저장하지 않습니다. 방문 스탬프에는 테마와 날짜, 중복 방지용 식별자만 남습니다. 연결 상태: ${model.travelStatus}")
         ParentNote("음성과 주행 제한","현재 공개 Pleos 규칙에 따라 주행 중에는 게임과 음성 상호작용을 중단합니다. 화면이 닫히거나 다른 차량 안내가 오면 듣기·말하기를 멈추고 자동으로 다시 시작하지 않습니다.")
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("테마 앰비언트 색상",fontWeight=FontWeight.Bold);Text("주차 중 지원 차량에만 은은한 고정 색 적용",fontSize=12.sp,color=Muted)};Switch(checked=model.ambientEnabled,onCheckedChange=model::changeAmbient,enabled=model.canPlay)}
         ParentNote("조명 연결 상태",model.ambientStatus + "\n밝기·점멸·외부 조명은 제어하지 않습니다. 주행 중 자동 색 변경은 중지됩니다. 앱이 갑자기 종료되면 색이 남을 수 있으며 차량에서 직접 바꿀 수 있어요.")
         if(model.ambientEnabled) OutlinedButton(onClick=model::retryAmbient,enabled=model.canPlay,modifier=Modifier.heightIn(min=52.dp)){Text("테마 색 다시 적용")}
-        ParentNote("기록과 개인정보","테마·역할·미션·스탬프를 기기에만 저장합니다. 음성 선택 시에만 마이크를 잠깐 사용합니다. 원본 음성을 저장하거나 서버로 보내지 않으며, 위치 정보도 수집하지 않습니다.")
+        ParentNote("기록과 개인정보","테마·역할·미션·스탬프를 기기에만 저장합니다. 음성 선택 시에만 마이크를 잠깐 사용합니다. 원본 음성을 저장하거나 서버로 보내지 않습니다. 방문 스탬프 또는 테마 추천을 켠 경우에 내비 여행 정보를 기기 안에서 처리하며 좌표나 목적지 이름·주소는 저장하지 않습니다.")
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("모험 소리");Text("출발 효과음과 이야기 배경음",fontSize=12.sp,color=Muted)};Switch(checked=model.soundsEnabled,onCheckedChange=model::changeSounds,enabled=model.canPlay)}
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("차분한 화면",fontWeight=FontWeight.Bold);Text("엔딩의 반짝이 장식을 줄여요",fontSize=12.sp,color=Muted)};Switch(checked=model.reducedMotion,onCheckedChange=model::changeReducedMotion,enabled=model.canPlay)}
         OutlinedButton(onClick={showDiagnostics=!showDiagnostics},modifier=Modifier.heightIn(min=52.dp)){Text(if(showDiagnostics)"연결 정보 접기"else"차량 연결·개발 정보 보기")}
         if(showDiagnostics) {

@@ -1,0 +1,25 @@
+11-13 22:11:03.561 12140 12140 I ParkOnWheels: theme_sound ducked=true
+11-13 22:11:08.836 12140 12140 I ParkOnWheels: theme_sound ducked=false
+11-13 22:14:08.274 21464 21464 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-13 22:14:08.389 21464 21464 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-13 22:14:15.221 21464 21464 I ParkOnWheels: theme_sound ducked=false
+11-13 22:14:15.226 21464 21464 I ParkOnWheels: theme_sound ducked=true
+11-13 22:14:19.146 21464 21464 I ParkOnWheels: theme_sound ducked=false
+11-13 22:14:19.149 21464 21464 I ParkOnWheels: theme_sound ducked=true
+11-13 22:14:24.212 21464 21464 I ParkOnWheels: theme_sound ducked=false
+11-13 22:14:25.653 21464 21464 I ParkOnWheels: theme_sound ducked=true
+11-13 22:14:29.144 21464 21464 I ParkOnWheels: theme_sound ducked=false
+11-13 22:14:29.146 21464 21464 I ParkOnWheels: theme_sound ducked=true
+11-13 22:14:34.419 21464 21464 I ParkOnWheels: theme_sound ducked=false
+11-13 22:17:48.756  1896  1896 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-13 22:17:48.892  1896  1896 I ParkOnWheels: theme_sound ambience=space playing=true ducked=true
+11-13 22:17:55.686  1896  1896 I ParkOnWheels: theme_sound ducked=false
+11-13 22:17:55.692  1896  1896 I ParkOnWheels: theme_sound ducked=true
+11-13 22:17:59.611  1896  1896 I ParkOnWheels: theme_sound ducked=false
+11-13 22:17:59.612  1896  1896 I ParkOnWheels: theme_sound ducked=true
+11-13 22:18:04.676  1896  1896 I ParkOnWheels: theme_sound ducked=false
+11-13 22:18:06.118  1896  1896 I ParkOnWheels: theme_sound ducked=true
+11-13 22:18:09.634  1896  1896 I ParkOnWheels: theme_sound ducked=false
+11-13 22:18:09.637  1896  1896 I ParkOnWheels: theme_sound ducked=true
+11-13 22:18:14.932  1896  1896 I ParkOnWheels: theme_sound ducked=false
+11-13 22:19:57.767 27954 27954 I ParkOnWheels: theme_sound departure=space playing=true

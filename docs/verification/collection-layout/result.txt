@@ -1,0 +1,3 @@
+PASS: home and collection four card bounds match exactly on Pleos emulator.
+['[369,65][706,253]', '[715,65][1053,253]', '[369,262][706,451]', '[715,262][1053,451]']
+PASS: dinosaur notebook opens and returns.
