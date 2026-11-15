@@ -31,6 +31,9 @@ adb -e shell am start --user current -n com.parkonwheels.pleos/com.parkonwheels.
 ### 테스트 환경과 필요한 설정
 
 - 로컬 검증 환경: macOS Apple Silicon, Pleos Connect AVD / Android API 34, Vehicle SDK 2.3.2, SpeechToText SDK 3.3.1.
+- Pleos Connect 에뮬레이터: **v2.1.0**, Android API 34, arm64-v8a (설치된 시스템 이미지의 `package.xml` 기준).
+- 검증 화면 규격: **1080 × 600 px**, **120 dpi**. 차량 시스템 영역을 포함한 전체 디스플레이 기준이며, 앱은 오른쪽 앱 영역에서 실행됩니다.
+- 제출 APK 검증 AVD: `ParkOnWheelsReleaseCheck`. 별도 개발 AVD의 기록은 유지했습니다.
 - 기어 **P**, UX 제한 해제, 유효한 차량 거리 조회가 필요합니다. 상태 미확인·주행·백그라운드에서는 재생과 음성 상호작용을 중단합니다.
 - 마이크는 보호자가 시작하고 `RECORD_AUDIO` 권한을 허용한 뒤 사용합니다. Pleos `STT_SERVICE`와 한국어 온디바이스 인식을 사용하며 서버 키는 필요하지 않습니다.
 - 한국어 오프라인 TTS를 사용하고, 사용할 수 없으면 앱에 포함된 한국어 녹음을 재생합니다.
