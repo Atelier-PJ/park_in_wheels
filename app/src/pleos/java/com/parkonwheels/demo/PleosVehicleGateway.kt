@@ -76,8 +76,13 @@ class PleosVehicleGateway(
         target?.onOdometer(null)
         note(message)
     }
-    private fun acceptDistance(value: Float?) {
-        val km = readiness.distance(value, SystemClock.elapsedRealtime())
+    private fun acceptDistance(value: Float?, receivedAt: Long = SystemClock.elapsedRealtime()) {
+        val now=SystemClock.elapsedRealtime()
+        if(now < receivedAt || now-receivedAt > VehicleReadiness.MAX_AGE_MS) {
+            invalidDistance("delayed odometer callback · awaiting fresh state")
+            return
+        }
+        val km = readiness.distance(value, receivedAt)
         if (km == null) { invalidDistance("odometer unavailable"); return }
         target?.onOdometer(km)
         note("odometer_km=$km · capability=READ · actual SDK callback")
@@ -97,7 +102,10 @@ class PleosVehicleGateway(
             // SDK 2.3.2 Gear has no capability method. Typed reads require CAR_DRIVE;
             // denied, unknown and stale values fail closed rather than inferring P from UX.
             gearListener = object : GearSelectionListener {
-                override fun onSelected(value: VehicleGear?) = dispatch(token) { gearEventVersion++; acceptGear(value) }
+                override fun onSelected(value: VehicleGear?) {
+                    val receivedAt=SystemClock.elapsedRealtime()
+                    dispatch(token) { gearEventVersion++; acceptGear(value,receivedAt) }
+                }
                 override fun onFailed(e: Exception) = dispatch(token) { acceptGear(null) }
             }.also { gear!!.registerGearSelection(it) }
             note("Vehicle.initialize returned; awaiting capability/read callbacks")
@@ -188,10 +196,16 @@ class PleosVehicleGateway(
         }
         fun query() {
             val before = eventVersion
-            odo.getCurrentDistanceDriven(onComplete = { value -> dispatch(token) {
+            val startedAt = SystemClock.elapsedRealtime()
+            odo.getCurrentDistanceDriven(onComplete = { value ->
+                val receivedAt=SystemClock.elapsedRealtime()
+                dispatch(token) {
                 if (request == id) {
                     inFlightAt = null
-                    if (eventVersion == before) acceptDistance(value)
+                    if (eventVersion == before) {
+                        if(SystemClock.elapsedRealtime()-startedAt > VehicleReadiness.MAX_AGE_MS) invalidDistance("SDK read expired · awaiting fresh state")
+                        else acceptDistance(value,receivedAt)
+                    }
                 }
             } }, onFailed = ::failed)
         }
@@ -206,9 +220,9 @@ class PleosVehicleGateway(
                 } else try {
                     if (distanceListener == null) {
                         val listener = object : DistanceDrivenListener {
-                            override fun onDistanceDrivenUpdated(value: Float?) = dispatch(token) {
-                                eventVersion++
-                                acceptDistance(value)
+                            override fun onDistanceDrivenUpdated(value: Float?) {
+                                val receivedAt=SystemClock.elapsedRealtime()
+                                dispatch(token) { eventVersion++;acceptDistance(value,receivedAt) }
                             }
                             override fun onFailed(e: Exception) = dispatch(token) {
                                 invalidDistance("odometer listener failed: ${e.javaClass.simpleName}")

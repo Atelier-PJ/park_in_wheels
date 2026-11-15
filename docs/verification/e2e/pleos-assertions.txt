@@ -1,0 +1,8 @@
+PASS fresh actual P/UX/odometer and production voice readiness
+INPUT generated PCM through production PleosSpeechInput, actual ON_DEVICE STT
+PASS UI entrance/theme/ticket, real bundled narration and production final-result matcher
+PASS real Pleos ambient RGB write AND readback confirmed #FFE5A1
+PASS exactly one voice request, one starlight request and one persisted stamp
+PASS passport, magic collection and detail narration reached by UI taps
+PASS isolated passport restored; user passport untouched
+RESTORE 이전 색 복원 1곳 · 직접 바꾼 색 유지 0곳 · 미확인 0곳

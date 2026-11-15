@@ -2,4 +2,3 @@ PASS real Pleos flow 다이노 사파리 -> transformation -> destination 서울
 PASS real Pleos flow 매직 캐슬 -> transformation -> destination 경복궁 -> story
 PASS real Pleos flow 스페이스 포트 -> transformation -> destination 국립과천과학관 -> story
 PASS real Pleos flow 오션 서브마린 -> transformation -> destination 해운대해수욕장 -> story
-

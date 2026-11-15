@@ -1,0 +1,6 @@
+
+com.parkonwheels.demo.JourneyUiTest:..
+
+Time: 171.394
+
+OK (2 tests)

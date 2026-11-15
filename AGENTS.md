@@ -10,6 +10,7 @@ Android Kotlin/Compose + Java core. Read `README.md`, `docs/PLEOS_CONNECTION.md`
 - Pure domain checks: `bash scripts/test-core.sh`.
 - If `.pow-env.sh` exists, source it before Gradle/adb commands. Never commit that file or credentials.
 - `demoDebug` is explicit mock input; `pleosDebug` uses real Vehicle SDK 2.3.2 + android.car, no mock panel.
+- Full UI regressions: `bash scripts/verify-ui.sh`; real emulator STT/RGB integration: `bash scripts/verify-starlight.sh`. Both require a running emulator and use test-only E2eRunner with isolated preferences. Keep the Pleos console tab active for real vehicle simulation.
 - APK outputs: `app/build/outputs/apk/demo/debug/` and `app/build/outputs/apk/pleos/debug/`.
 
 ## SDK constraints
@@ -28,3 +29,7 @@ Android Kotlin/Compose + Java core. Read `README.md`, `docs/PLEOS_CONNECTION.md`
 ## Cloud environment
 
 GitHub Actions builds APKs. GitHub Codespaces is a developer workspace. Codex Cloud is an independent published task environment. `.devcontainer` is not proof that a Codex Cloud environment was created or published. The standard cloud setup does not start a Pleos emulator. Optional manual GitHub Actions runtime testing is documented in docs/EMULATOR_TEST.md; local Android Studio/Pleos AVD remains available. Keep full workflow status separate from per-app runtime evidence.
+
+## Local stability
+
+Keep SDKs, system images, AVD state and working checkouts outside macOS cloud-offloaded directories. A `dataless` system image can hang startup or crash a running emulator. Restore the official image and validate the archive before testing; never treat a graphics/service crash as an app test pass. Do not erase the user's original AVD or passport to repair a test environment.

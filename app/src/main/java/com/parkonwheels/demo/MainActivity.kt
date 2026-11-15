@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.asImageBitmap
@@ -56,11 +57,21 @@ private val TicketShape = RoundedCornerShape(13.dp)
 private val StoryFont = androidx.compose.ui.text.font.FontFamily(androidx.compose.ui.text.font.Font(R.font.jua_regular))
 
 class MainActivity : ComponentActivity() {
-    private val model: SafariModel by viewModels()
-    private lateinit var voice: VoiceDirector
+    private val model: SafariModel by viewModels {
+        val dependencies=application as? AdventureDependencies
+        if(dependencies==null) defaultViewModelProviderFactory else object:androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T:androidx.lifecycle.ViewModel> create(modelClass:Class<T>):T = dependencies.createModel(application) as T
+        }
+    }
+    internal lateinit var voice: VoiceDirector
+    private var detachPlaybackSafety:()->Unit={}
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        voice = VoiceDirector(this) { model.canPlay }
+        val dependencies=application as? AdventureDependencies
+        voice = if(dependencies==null) VoiceDirector(this) { model.canPlay }
+            else VoiceDirector(this,dependencies.createSpeechInput(this)) { model.canPlay }
+        detachPlaybackSafety=model.onPlaybackBlocked { voice.stop("주차 상태를 확인한 뒤 다시 시작해 주세요.") }
         setContent {
             ParkTheme {
                 ParkApp(model, voice)
@@ -69,7 +80,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() { super.onStart(); model.foreground() }
     override fun onStop() { voice.stop(); model.background(); super.onStop() }
-    override fun onDestroy() { voice.close(); super.onDestroy() }
+    override fun onDestroy() { detachPlaybackSafety(); voice.close(); super.onDestroy() }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -443,31 +454,38 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
     }
 }
 
-@Composable private fun CollectionCreature(theme:String,index:Int,modifier:Modifier) {
+private object CollectionSheets {
+    private val cache=android.util.LruCache<String,android.graphics.Bitmap>(2)
+    @Synchronized fun get(context:android.content.Context,theme:String):android.graphics.Bitmap =
+        cache.get(theme) ?: context.assets.open("collections/${if(theme=="magic")"magic-v2" else theme}.png").use {
+            checkNotNull(android.graphics.BitmapFactory.decodeStream(it)).also { bitmap -> cache.put(theme,bitmap) }
+        }
+}
+
+@Composable private fun CollectionCreature(theme:String,index:Int,modifier:Modifier=Modifier) {
     val context=LocalContext.current
-    val sheet=remember(theme) {
-        context.assets.open("collections/${if(theme=="magic")"magic-v2" else theme}.png").use { android.graphics.BitmapFactory.decodeStream(it) }
-    }
-    val tile=remember(sheet,index) {
-        // The dinosaur sheet is not an exact grid: lower-row heads and tails cross its midlines.
-        // Boundaries follow the clear gaps between creatures, preserving each complete silhouette.
-        val bounds=if(theme=="dino") listOf(
-            intArrayOf(0,0,512,480),intArrayOf(512,0,1000,480),intArrayOf(1000,0,1536,480),
-            intArrayOf(0,480,488,1024),intArrayOf(488,480,1000,1024),intArrayOf(1000,480,1536,1024)
-        )[index] else null
-        if(bounds!=null) {
-            val left=bounds[0]*sheet.width/1536; val top=bounds[1]*sheet.height/1024
-            val right=bounds[2]*sheet.width/1536; val bottom=bounds[3]*sheet.height/1024
-            android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
-        } else {
-            val left=(index%3)*sheet.width/3; val top=(index/3)*sheet.height/2
-            val right=((index%3)+1)*sheet.width/3; val bottom=((index/3)+1)*sheet.height/2
-            android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
+    val tile by produceState<android.graphics.Bitmap?>(null,theme,index) {
+        value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val sheet=CollectionSheets.get(context,theme)
+            // Keep the full dinosaur silhouettes where the sheet crosses regular grid lines.
+            val bounds=if(theme=="dino") listOf(
+                intArrayOf(0,0,512,480),intArrayOf(512,0,1000,480),intArrayOf(1000,0,1536,480),
+                intArrayOf(0,480,488,1024),intArrayOf(488,480,1000,1024),intArrayOf(1000,480,1536,1024)
+            )[index] else null
+            if(bounds!=null) {
+                val left=bounds[0]*sheet.width/1536;val top=bounds[1]*sheet.height/1024
+                val right=bounds[2]*sheet.width/1536;val bottom=bounds[3]*sheet.height/1024
+                android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
+            } else {
+                val left=(index%3)*sheet.width/3;val top=(index/3)*sheet.height/2
+                val right=((index%3)+1)*sheet.width/3;val bottom=((index/3)+1)*sheet.height/2
+                android.graphics.Bitmap.createBitmap(sheet,left,top,right-left,bottom-top)
+            }
         }
     }
-    androidx.compose.foundation.Image(
-        bitmap=tile.asImageBitmap(),contentDescription=null,
-        modifier=modifier.padding(6.dp),contentScale=ContentScale.Fit)
+    Box(modifier.padding(6.dp)) {
+        tile?.let { androidx.compose.foundation.Image(bitmap=it.asImageBitmap(),contentDescription=null,modifier=Modifier.fillMaxSize().testTag("collection-art-$theme-$index"),contentScale=ContentScale.Fit) }
+    }
 }
 
 @Composable private fun SafetyScreen(model:SafariModel, onReset:()->Unit) {
@@ -522,7 +540,7 @@ private fun collectionTitle(id:String)=when(id){"dino"->"공룡 도감";"magic"-
         }
         ParentNote("여행 정보 사용", "여행 연동은 모두 선택 사항입니다. 충전은 상태만 읽으며 충전을 조작하지 않습니다. 내비의 목적지 이름과 주소는 도착 알림을 중복 처리하지 않기 위해 기기 안에서 잠시 처리하고 저장하지 않습니다. 방문 스탬프에는 테마와 날짜, 중복 방지용 식별자만 남습니다. 연결 상태: ${model.travelStatus}")
         ParentNote("음성과 주행 제한","현재 공개 Pleos 규칙에 따라 주행 중에는 게임과 음성 상호작용을 중단합니다. 화면이 닫히거나 다른 차량 안내가 오면 듣기·말하기를 멈추고 자동으로 다시 시작하지 않습니다.")
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("테마 앰비언트 색상",fontWeight=FontWeight.Bold);Text("주차 중 지원 차량에만 은은한 고정 색 적용",fontSize=12.sp,color=Muted)};Switch(checked=model.ambientEnabled,onCheckedChange=model::changeAmbient,enabled=model.canPlay)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("테마 앰비언트 색상",fontWeight=FontWeight.Bold);Text("주차 중 지원 차량에만 은은한 고정 색 적용",fontSize=12.sp,color=Muted)};Switch(checked=model.ambientEnabled,onCheckedChange=model::changeAmbient,enabled=model.canPlay,modifier=Modifier.semantics{contentDescription="테마 앰비언트 색상 설정"})}
         ParentNote("조명 연결 상태",model.ambientStatus + "\n밝기·점멸·외부 조명은 제어하지 않습니다. 주행 중 자동 색 변경은 중지됩니다. 앱이 갑자기 종료되면 색이 남을 수 있으며 차량에서 직접 바꿀 수 있어요.")
         if(model.ambientEnabled) OutlinedButton(onClick=model::retryAmbient,enabled=model.canPlay,modifier=Modifier.heightIn(min=52.dp)){Text("테마 색 다시 적용")}
         ParentNote("기록과 개인정보","테마·역할·미션·스탬프를 기기에만 저장합니다. 음성 선택 시에만 마이크를 잠깐 사용합니다. 원본 음성을 저장하거나 서버로 보내지 않습니다. 방문 스탬프 또는 테마 추천을 켠 경우에 내비 여행 정보를 기기 안에서 처리하며 좌표나 목적지 이름·주소는 저장하지 않습니다.")

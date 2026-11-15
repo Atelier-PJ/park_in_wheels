@@ -15,6 +15,7 @@ class AmbientSceneController(
     private val light: () -> Light?,
     private val allowed: () -> Boolean
 ) {
+    companion object { const val RESPONSE_TIMEOUT_MS = 12_000L }
     private val main = Handler(Looper.getMainLooper())
     private var generation = 0L
     private var deadline = 0L
@@ -24,11 +25,22 @@ class AmbientSceneController(
     private fun dispatch(token: Long, action: () -> Unit) {
         main.post { if(token == generation && allowed() && SystemClock.elapsedRealtime() <= deadline) action() }
     }
+    private fun verifyColor(api: Light, area: SeatArea, desired: Int, token: Long, done: (Boolean) -> Unit, attempt: Int = 1) {
+        main.postDelayed({ dispatch(token) {
+            try { api.getAmbientLightBrightnessColor(area,
+                onComplete={ verified -> dispatch(token) {
+                    android.util.Log.i("ParkOnWheels", "ambient readback desired=${desired.toUInt().toString(16)} actual=${verified?.toUInt()?.toString(16)} attempt=$attempt")
+                    if(verified != null && (verified and 0xFFFFFF) == (desired and 0xFFFFFF)) done(true)
+                    else if(attempt < 4) verifyColor(api,area,desired,token,done,attempt+1) else done(false)
+                } }, onFailed={ dispatch(token) { done(false) } }) }
+            catch(error: Exception) { done(false) }
+        } }, attempt * 400L)
+    }
     fun suspendCommands() { generation++; timeout?.let(main::removeCallbacks); timeout = null }
     fun apply(color: Int?, report: (String) -> Unit) {
         suspendCommands()
         val token = generation
-        deadline = SystemClock.elapsedRealtime() + 5_000
+        deadline = SystemClock.elapsedRealtime() + RESPONSE_TIMEOUT_MS
         fun complete(message: String) {
             if(token != generation) return
             suspendCommands(); report(message)
@@ -39,7 +51,9 @@ class AmbientSceneController(
             complete("차량 조명 권한이 없어요. 테마 그림으로 체험할 수 있어요."); return
         }
         val api = light() ?: run { complete("차량 조명 연결을 확인해 주세요"); return }
-        timeout = Runnable { if(token == generation) complete("조명 응답을 확인하지 못했어요. 적용 여부는 차량에서 확인해 주세요.") }.also { main.postDelayed(it, 5_000) }
+        // This bounds the asynchronous capability/read/write/readback chain. It does not
+        // relax allowed(): fresh P/UX/distance is rechecked at every individual callback.
+        timeout = Runnable { if(token == generation) complete("조명 응답을 확인하지 못했어요. 적용 여부는 차량에서 확인해 주세요.") }.also { main.postDelayed(it, RESPONSE_TIMEOUT_MS) }
         if(color == null) {
             if(originals.isEmpty()) { complete("앱이 바꾼 조명이 없어요"); return }
             val targets = originals.toMap(); var remaining = targets.size; var restored = 0; var respected = 0
@@ -54,9 +68,11 @@ class AmbientSceneController(
                         originals.remove(area); applied.remove(area); finishOne(true, true)
                     } else try { api.setAmbientLightBrightnessColor(area, original,
                         onComplete={ _, actual -> dispatch(token) {
-                            val ok = (actual and 0xFFFFFF) == (original and 0xFFFFFF)
-                            if(ok) { originals.remove(area); applied.remove(area) }
-                            finishOne(ok)
+                            if((actual and 0xFFFFFF) != (original and 0xFFFFFF)) finishOne(false)
+                            else verifyColor(api,area,original,token,{ ok ->
+                                if(ok) { originals.remove(area); applied.remove(area) }
+                                finishOne(ok)
+                            })
                         } }, onFailed={ dispatch(token) { finishOne(false) } }) }
                     catch(error: Exception) { finishOne(false) }
                 } }, onFailed={ dispatch(token) { finishOne(false) } })
@@ -86,18 +102,7 @@ class AmbientSceneController(
                                 applied[area] = desired
                                 // A write acknowledgement can precede the next vehicle-state event.
                                 // Retry reads only (never resend writes), within the same parked epoch/deadline.
-                                fun verify(attempt: Int) {
-                                    main.postDelayed({ dispatch(token) {
-                                        try { api.getAmbientLightBrightnessColor(area,
-                                            onComplete={ verified -> dispatch(token) {
-                                                android.util.Log.i("ParkOnWheels", "ambient readback desired=${desired.toUInt().toString(16)} actual=${verified?.toUInt()?.toString(16)} attempt=$attempt")
-                                                if(verified != null && (verified and 0xFFFFFF) == (desired and 0xFFFFFF)) finishOne(true)
-                                                else if(attempt < 4) verify(attempt + 1) else finishOne(false)
-                                            } }, onFailed={ dispatch(token) { finishOne(false) } }) }
-                                        catch(error: Exception) { finishOne(false) }
-                                    } }, attempt * 400L)
-                                }
-                                verify(1)
+                                verifyColor(api,area,desired,token,::finishOne)
                             }
                         } }, onFailed={ error -> dispatch(token) { android.util.Log.w("ParkOnWheels", "ambient write failure ${error.javaClass.simpleName}: ${error.message}"); finishOne(false) } }) }
                     catch(error: Exception) { finishOne(false) }
